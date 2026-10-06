@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+model Project {
+  id                  String           @id @default(cuid())
+  userId              String
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  niche               String
+  status              String           @default("draft")
+  /// Standing instructions injected into every writing prompt
+  writingInstructions String           @default("")
+  /// "nonfiction" uses the 7-step narrative framework; "fiction" writes story chapters
+  kind                String           @default("nonfiction")
+  /// Auto-generated plan for the whole book (premise, reader, promise, arc), editable
+  bookBrief           String           @default("")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  blueprint           AuthorBlueprint?
+  outlierReports      OutlierReport[]
+  chapters            Chapter[]
+  documents           SourceDocument[]
+  characters          Character[]
+
+  @@index([userId])
+}
+
+model AuthorBlueprint {
+  id              String   @id @default(cuid())
+  projectId       String   @unique
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  loves           String
+  goodAt          String
+  marketNeeds     String
+  monetization    String
+  markdownContent String
+  voiceRules      String[]
+  updatedAt       DateTime @updatedAt
+}
+
+model OutlierReport {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source           String   @default("web")
+  score            Int
+  marketGaps       String[]
+  competitorsJson  Json
+  rawSearchResults Json?
+  strategyMarkdown String?
+  createdAt        DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model Chapter {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order          Int
+  title          String
+  frameworkStep  String?
+  content        String   @default("")
+  status         String   @default("outline")
+  dictationNotes String?
+  /// Saved per-chapter instruction, reused on redraft
+  instructions   String   @default("")
+  /// Auto-generated plan for this chapter: summary, key points, characters, source documents
+  brief          String   @default("")
+  updatedAt      DateTime @updatedAt
+
+  @@unique([projectId, order])
+  @@index([projectId])
+}
+
+/// Uploaded reference material (premise, drafts, competitor books) used when writing.
+model SourceDocument {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  text          String
+  charCount     Int
+  useForWriting Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+/// Characters detected in reference documents and drafts (or added by hand). Fed into every writing prompt.
+model Character {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  role        String   @default("")
+  description String   @default("")
+  aliases     String   @default("")
+  source      String   @default("manual")
+  createdAt   DateTime @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
