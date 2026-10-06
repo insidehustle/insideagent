@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, BookText, Compass, Image as ImageIcon, LayoutDashboard, Megaphone, PenLine } from "lucide-react";
+import { BookOpenText, BookText, Compass, Image as ImageIcon, LayoutDashboard, Megaphone, PenLine, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ProjectProvider, useProject } from "./ProjectProvider";
 
@@ -22,6 +22,15 @@ function Sidebar() {
     <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-ink-200 bg-white p-4 md:w-64 md:border-b-0 md:border-r">
       <Link href="/" className="font-serif text-lg font-semibold">
         Book Automation
+      </Link>
+      <Link
+        href="/dashboard/projects/new"
+        className={cn(
+          "flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+          pathname === "/dashboard/projects/new" ? "bg-accent-dark text-white" : "bg-accent text-white hover:bg-accent-dark",
+        )}
+      >
+        <Plus size={16} /> New project
       </Link>
       {projects.length > 0 && (
         <label className="block">

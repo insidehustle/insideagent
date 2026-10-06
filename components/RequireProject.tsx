@@ -13,8 +13,8 @@ export function RequireProject({ children }: { children: (project: ProjectSummar
     return (
       <Card>
         <p>No project yet.</p>
-        <Link href="/dashboard" className="mt-2 inline-block text-accent underline">
-          Create one on the overview page
+        <Link href="/dashboard/projects/new" className="mt-2 inline-block text-accent underline">
+          Create a new project
         </Link>
       </Card>
     );

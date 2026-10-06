@@ -1,32 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Check, Circle } from "lucide-react";
+import { Check, Circle, Plus } from "lucide-react";
 import { useProject } from "@/components/ProjectProvider";
-import { Button, Card, ErrorNote, Label, PageHeader } from "@/components/ui/kit";
+import { Card, ErrorNote, PageHeader } from "@/components/ui/kit";
 
 export default function DashboardHome() {
-  const { current, projects, loading, error, create } = useProject();
-  const [title, setTitle] = useState("");
-  const [niche, setNiche] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setFormError(null);
-    try {
-      await create(title, niche);
-      setTitle("");
-      setNiche("");
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not create project");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { current, loading, error } = useProject();
 
   const steps = current && [
     { done: !!current.blueprint, label: "Author blueprint", href: "/dashboard/ikigai" },
@@ -54,23 +34,14 @@ export default function DashboardHome() {
           </ul>
         </Card>
       )}
-      <Card>
-        <h2 className="mb-4 font-semibold">{projects.length || loading ? "New project" : "Create your first project"}</h2>
-        <form onSubmit={submit} className="space-y-4">
-          <label className="block">
-            <Label>Working title</Label>
-            <input required className="w-full" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </label>
-          <label className="block">
-            <Label hint="e.g. productivity for ADHD adults">Niche</Label>
-            <input required className="w-full" value={niche} onChange={(e) => setNiche(e.target.value)} />
-          </label>
-          <ErrorNote message={formError} />
-          <Button type="submit" loading={busy}>
-            Create project
-          </Button>
-        </form>
-      </Card>
+      {!current && !loading && (
+        <Card>
+          <h2 className="font-semibold">Create your first project</h2>
+          <Link href="/dashboard/projects/new" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white">
+            <Plus size={14} /> New project
+          </Link>
+        </Card>
+      )}
     </div>
   );
 }
