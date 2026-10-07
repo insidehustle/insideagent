@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Check } from "lucide-react";
-import { api } from "@/lib/client";
+import { Copy, Check, Headphones, Play } from "lucide-react";
+import { api, patch } from "@/lib/client";
 import { RequireProject } from "@/components/RequireProject";
 import type { ChapterRow } from "@/components/ChapterEditor";
+import { ListenPlayer, splitParagraphs } from "@/components/ListenPlayer";
 import { Button, Card, ErrorNote, PageHeader } from "@/components/ui/kit";
 
 const wordCount = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
@@ -13,6 +14,7 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
   const [chapters, setChapters] = useState<ChapterRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [listening, setListening] = useState<{ chapterId: string; paragraph: number } | null>(null);
 
   useEffect(() => {
     setChapters(null);
@@ -36,6 +38,8 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
       setError("Could not copy to the clipboard");
     }
   }
+
+  const listenChapter = chapters?.find((c) => c.id === listening?.chapterId);
 
   if (!chapters) return error ? <ErrorNote message={error} /> : <p className="text-ink-700">Loading manuscript…</p>;
 
@@ -64,11 +68,46 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
         {written.map((c) => (
           <section key={c.id} className="mb-14 last:mb-0">
             <p className="text-xs font-medium uppercase tracking-wide text-ink-700/70">Chapter {c.order}</p>
-            <h2 className="mb-6 font-serif text-2xl font-semibold">{c.title}</h2>
-            <div className="whitespace-pre-wrap font-serif text-base leading-relaxed">{c.content.trim()}</div>
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+              <h2 className="font-serif text-2xl font-semibold">{c.title}</h2>
+              <Button variant="secondary" onClick={() => setListening({ chapterId: c.id, paragraph: 0 })}>
+                <Headphones size={14} /> Listen
+              </Button>
+            </div>
+            <div className="space-y-4 font-serif text-base leading-relaxed">
+              {splitParagraphs(c.content).map((para, i) => (
+                <div key={i} className="group relative">
+                  <button
+                    onClick={() => setListening({ chapterId: c.id, paragraph: i })}
+                    aria-label="Listen from this paragraph"
+                    title="Listen from here"
+                    className="absolute -left-9 top-0 hidden rounded-full bg-accent p-1.5 text-white hover:bg-accent-dark group-hover:block focus:block md:block md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
+                  >
+                    <Play size={12} />
+                  </button>
+                  <p className="whitespace-pre-wrap rounded-lg group-hover:bg-ink-50">{para}</p>
+                </div>
+              ))}
+            </div>
           </section>
         ))}
       </article>
+
+      {listening && listenChapter && (
+        <ListenPlayer
+          key={`${listening.chapterId}:${listening.paragraph}`}
+          text={listenChapter.content}
+          title={`${listenChapter.order}. ${listenChapter.title}`}
+          projectId={projectId}
+          startParagraph={listening.paragraph}
+          autoPlay
+          onClose={() => setListening(null)}
+          onApply={async (revised) => {
+            const { chapter: saved } = await patch<{ chapter: ChapterRow }>("/api/chapters", { id: listenChapter.id, content: revised });
+            setChapters((cs) => cs && cs.map((c) => (c.id === saved.id ? saved : c)));
+          }}
+        />
+      )}
     </div>
   );
 }

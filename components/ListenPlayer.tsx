@@ -14,6 +14,10 @@ interface Props {
   /** Persist the revised chapter text. */
   onApply: (text: string) => Promise<void>;
   onClose: () => void;
+  /** Paragraph to start from (0-based, same splitting as the player). */
+  startParagraph?: number;
+  /** Begin reading as soon as the player opens. */
+  autoPlay?: boolean;
 }
 
 interface Segment {
@@ -29,7 +33,7 @@ interface Selection {
 
 const QUICK_EDITS = ["Make it shorter", "Use simpler words", "More vivid", "More direct", "Sound more natural"];
 
-const splitParagraphs = (t: string) =>
+export const splitParagraphs = (t: string) =>
   t
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -82,12 +86,12 @@ function sentenceAround(paragraph: string, offset: number): string {
  * Reads the chapter aloud (browser text-to-speech, works on phones and computers), highlights the
  * word being spoken, and lets you tap any word or paragraph to revise it by typing or by voice.
  */
-export function ListenPlayer({ text, title, projectId, onApply, onClose }: Props) {
+export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false }: Props) {
   const [paras, setParas] = useState<string[]>(() => splitParagraphs(text));
   const parasRef = useRef(paras);
   parasRef.current = paras;
 
-  const [pos, setPos] = useState({ p: 0, s: 0 });
+  const [pos, setPos] = useState({ p: Math.max(0, startParagraph), s: 0 });
   const [playing, setPlaying] = useState(false);
   const [spoken, setSpoken] = useState<{ p: number; start: number } | null>(null);
   const [rate, setRate] = useState(1);
@@ -217,6 +221,11 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose }: Props
     },
     [supported],
   );
+
+  useEffect(() => {
+    if (autoPlay && supported) speakFrom(Math.max(0, startParagraph), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // changing speed or voice mid-sentence takes effect from the start of that sentence
   const firstRender = useRef(true);
