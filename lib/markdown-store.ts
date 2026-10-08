@@ -5,6 +5,10 @@ export interface BlueprintInput {
   goodAt: string;
   marketNeeds: string;
   monetization: string;
+  stories: string;
+  reader: string;
+  voiceSample: string;
+  avoid: string;
 }
 
 /** Extracts bullet items under a "Voice Rules" heading. */

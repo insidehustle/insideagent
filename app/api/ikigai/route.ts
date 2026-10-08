@@ -35,7 +35,19 @@ Write the blueprint in Markdown with exactly these sections, in this order:
 ## Voice Rules (6 to 10 bullets, each a concrete, checkable writing rule derived from how the author expresses themselves)
 ## Words and Moves to Avoid (bullets)
 
-Use only information the author provided. Do not invent credentials, numbers or stories.`;
+${input.stories ? `Real stories from the author (use these under Proof and Stories, keep their specifics):
+${input.stories}
+
+` : ""}${input.reader ? `Ideal reader, as the author describes them (add a "## Ideal Reader" section after Positioning Statement):
+${input.reader}
+
+` : ""}${input.voiceSample ? `Writing sample in the author's natural voice (derive the Voice Rules mainly from how this sample actually reads: sentence length, rhythm, vocabulary, tone):
+${input.voiceSample}
+
+` : ""}${input.avoid ? `What the author refuses to say or write, and who the book is not for (put in Words and Moves to Avoid):
+${input.avoid}
+
+` : ""}Use only information the author provided. Do not invent credentials, numbers or stories.`;
 }
 
 /** Create or regenerate the blueprint from the four Ikigai pillars. */
@@ -55,6 +67,10 @@ export async function POST(req: NextRequest) {
       goodAt: goodAt!.trim(),
       marketNeeds: marketNeeds!.trim(),
       monetization: monetization!.trim(),
+      stories: (body.stories ?? "").trim(),
+      reader: (body.reader ?? "").trim(),
+      voiceSample: (body.voiceSample ?? "").trim(),
+      avoid: (body.avoid ?? "").trim(),
     };
     const markdown = cleanProse(await askLLM(blueprintPrompt(input, project.title, project.niche)));
     const blueprint = await saveBlueprint(projectId, input, markdown);

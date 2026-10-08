@@ -13,6 +13,7 @@ model User {
   name      String?
   createdAt DateTime  @default(now())
   projects  Project[]
+  profiles  AuthorProfile[]
 }
 
 model Project {
@@ -51,6 +52,11 @@ model AuthorBlueprint {
   goodAt          String
   marketNeeds     String
   monetization    String
+  /// Optional extra answers: real stories, ideal reader, a writing sample, what to avoid
+  stories         String   @default("")
+  reader          String   @default("")
+  voiceSample     String   @default("")
+  avoid           String   @default("")
   markdownContent String
   voiceRules      String[]
   updatedAt       DateTime @updatedAt
@@ -119,4 +125,25 @@ model Character {
 
   @@unique([projectId, name])
   @@index([projectId])
+}
+
+/// A named, reusable author identity (Ikigai answers plus blueprint) that can be applied to any project.
+model AuthorProfile {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  loves           String
+  goodAt          String
+  marketNeeds     String
+  monetization    String
+  stories         String   @default("")
+  reader          String   @default("")
+  voiceSample     String   @default("")
+  avoid           String   @default("")
+  markdownContent String
+  voiceRules      String[]
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, name])
 }
