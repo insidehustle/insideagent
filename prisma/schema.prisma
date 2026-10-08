@@ -28,6 +28,10 @@ model Project {
   kind                String           @default("nonfiction")
   /// Auto-generated plan for the whole book (premise, reader, promise, arc), editable
   bookBrief           String           @default("")
+  /// Re-run web research on a schedule (see /api/cron/research)
+  autoResearch          Boolean          @default(false)
+  autoResearchEveryDays Int              @default(1)
+  lastAutoResearchAt    DateTime?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   blueprint           AuthorBlueprint?

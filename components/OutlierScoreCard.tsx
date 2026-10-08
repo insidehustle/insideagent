@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { scoreLabel, WEIGHTS, type Competitor, type OutlierSubscores } from "@/lib/frameworks/outlier-evaluator";
+import { cn } from "@/lib/cn";
 import { Card, Markdown } from "./ui/kit";
 
 export interface OutlierReportView {
@@ -9,7 +10,11 @@ export interface OutlierReportView {
   source: string;
   score: number;
   marketGaps: string[];
-  competitorsJson: { competitors?: Competitor[]; subscores?: OutlierSubscores } | null;
+  competitorsJson: {
+    competitors?: Competitor[];
+    subscores?: OutlierSubscores;
+    change?: { previousScore: number; delta: number; newCompetitors: string[] } | null;
+  } | null;
   strategyMarkdown: string | null;
   createdAt: string;
 }
@@ -27,6 +32,7 @@ export function OutlierScoreCard({ report }: { report: OutlierReportView }) {
   const circumference = 2 * Math.PI * radius;
   const competitors = report.competitorsJson?.competitors ?? [];
   const subscores = report.competitorsJson?.subscores;
+  const change = report.competitorsJson?.change;
 
   return (
     <div className="space-y-4">
@@ -58,6 +64,14 @@ export function OutlierScoreCard({ report }: { report: OutlierReportView }) {
           <p className="mb-3 text-xs text-ink-700">
             Source: {report.source} · {new Date(report.createdAt).toLocaleString()}
           </p>
+          {change && (
+            <p className="mb-3 text-xs">
+              <span className={cn("font-semibold", change.delta > 0 ? "text-green-700" : change.delta < 0 ? "text-red-700" : "")}>
+                {change.delta === 0 ? "No change" : `${change.delta > 0 ? "+" : ""}${change.delta}`} since last run ({change.previousScore})
+              </span>
+              {change.newCompetitors.length > 0 && <> · New competitors: {change.newCompetitors.join(", ")}</>}
+            </p>
+          )}
           {subscores && (
             <ul className="space-y-1.5">
               {(Object.keys(WEIGHTS) as (keyof OutlierSubscores)[]).map((k) => (

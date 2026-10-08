@@ -18,14 +18,13 @@ export async function POST(req: NextRequest) {
       kind?: "cover" | "promo";
     };
     const project = body.projectId ? await prisma.project.findUnique({ where: { id: body.projectId } }) : null;
-    const title = body.title?.trim() || project?.title;
     const niche = body.niche?.trim() || project?.niche;
-    if (!title || !niche) return apiError("title and niche are required", 400);
+    if (!niche) return apiError("niche is required", 400);
 
     const template = body.template && COVER_TEMPLATES.includes(body.template) ? body.template : "minimalist";
     const kind = body.kind === "promo" ? "promo" : "cover";
-    const prompt = buildCoverPrompt({ title, subtitle: body.subtitle, author: body.author, niche, template, kind });
-    const image = await generateImage(prompt);
+    const prompt = buildCoverPrompt({ niche, template, kind });
+    const image = await generateImage(prompt, kind);
 
     return NextResponse.json({
       image: { mimeType: image.mimeType, dataUrl: `data:${image.mimeType};base64,${image.base64}` },

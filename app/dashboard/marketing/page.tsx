@@ -12,7 +12,7 @@ export default function MarketingPage() {
         {(p) => (
           <>
             <section>
-              <PageHeader title="Cover Studio" subtitle="Generate cover concepts and promo images with Gemini." />
+              <PageHeader title="Cover Studio" subtitle="Generate cover concepts and promo images. Artwork is AI generated; your title and author are added on top." />
               <CoverStudio key={p.id} projectId={p.id} title={p.title} niche={p.niche} />
             </section>
             <section>

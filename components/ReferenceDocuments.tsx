@@ -76,8 +76,8 @@ export function ReferenceDocuments({ projectId }: { projectId: string }) {
 
   return (
     <CollapsibleCard id="documents" title={"Reference documents"} defaultOpen={true}>
-      <p className="text-xs text-ink-700">Upload your premise, drafts or books to learn from (.txt, .md, .pdf). Relevant passages are used when writing.</p>
-      <input ref={input} type="file" multiple accept=".txt,.md,.pdf" className="hidden" onChange={(e) => upload(e.target.files)} />
+      <p className="text-xs text-ink-700">Upload your premise, drafts or books to learn from (.txt, .md, .docx, .pdf). Relevant passages are used when writing.</p>
+      <input ref={input} type="file" multiple accept=".txt,.md,.docx,.pdf" className="hidden" onChange={(e) => upload(e.target.files)} />
       <Button variant="secondary" onClick={() => input.current?.click()} loading={busy} className="w-full">
         <Upload size={14} /> Upload files
       </Button>

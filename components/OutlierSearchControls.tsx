@@ -6,6 +6,7 @@ import { api, post } from "@/lib/client";
 import { cn } from "@/lib/cn";
 import { Button, Card, ErrorNote, Label } from "./ui/kit";
 import { OutlierScoreCard, type OutlierReportView } from "./OutlierScoreCard";
+import { AutoResearchPanel } from "./AutoResearchPanel";
 
 export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: string; defaultNiche: string }) {
   const [mode, setMode] = useState<"web" | "file">("web");
@@ -40,7 +41,7 @@ export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: 
       if (mode === "web") {
         await post("/api/outlier-analysis/search-niche", { projectId, niche });
       } else {
-        if (!file) throw new Error("Choose a .txt, .md or .pdf file first");
+        if (!file) throw new Error("Choose a .txt, .md, .docx or .pdf file first");
         const form = new FormData();
         form.set("file", file);
         form.set("projectId", projectId);
@@ -91,8 +92,8 @@ export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: 
           </p>
         ) : (
           <label className="block">
-            <Label hint=".txt, .md or .pdf, up to 10 MB. Also saved as a reference document for writing.">Manuscript or reference material</Label>
-            <input type="file" accept=".txt,.md,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <Label hint=".txt, .md, .docx or .pdf, up to 10 MB. Also saved as a reference document for writing.">Manuscript or reference material</Label>
+            <input type="file" accept=".txt,.md,.docx,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
         )}
         <ErrorNote message={error} />
@@ -101,6 +102,8 @@ export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: 
           {busy ? "Analyzing (can take a minute)" : "Run analysis"}
         </Button>
       </Card>
+
+      <AutoResearchPanel projectId={projectId} />
 
       {reports.length === 0 ? (
         <p className="text-sm text-ink-700">No reports yet.</p>

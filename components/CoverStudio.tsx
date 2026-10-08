@@ -18,6 +18,104 @@ interface Result {
   template: CoverTemplate;
 }
 
+const TEXT_STYLE: Record<CoverTemplate, { font: string; color: string; weight: string; upper: boolean }> = {
+  minimalist: { font: "Georgia, serif", color: "#ffffff", weight: "400", upper: false },
+  "bold-typographic": { font: "Impact, 'Arial Black', sans-serif", color: "#ffffff", weight: "700", upper: true },
+  illustrated: { font: "Georgia, serif", color: "#fffaf0", weight: "700", upper: false },
+  photographic: { font: "'Helvetica Neue', Arial, sans-serif", color: "#ffffff", weight: "700", upper: true },
+  "premium-dark": { font: "Georgia, serif", color: "#e6c875", weight: "700", upper: true },
+};
+
+function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** Draws the title, subtitle and author over the generated artwork and returns a PNG data URL. */
+async function overlayText(
+  artUrl: string,
+  o: { title: string; subtitle: string; author: string; template: CoverTemplate; kind: "cover" | "promo" },
+): Promise<string> {
+  const img = new Image();
+  img.src = artUrl;
+  await img.decode();
+  const W = img.naturalWidth;
+  const H = img.naturalHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not available in this browser");
+  ctx.drawImage(img, 0, 0);
+
+  const st = TEXT_STYLE[o.template];
+  const maxW = W * 0.82;
+  const cx = W / 2;
+  const promo = o.kind === "promo";
+  const fmt = (t: string) => (st.upper ? t.toUpperCase() : t);
+
+  // scrims keep text legible over any artwork
+  const scrim = (y0: number, y1: number, a0: number, a1: number) => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, `rgba(0,0,0,${a0})`);
+    g.addColorStop(1, `rgba(0,0,0,${a1})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, Math.min(y0, y1), W, Math.abs(y1 - y0));
+  };
+  if (promo) scrim(H * 0.2, H * 0.8, 0.45, 0.45);
+  else {
+    scrim(0, H * 0.5, 0.6, 0);
+    if (o.author) scrim(H, H * 0.85, 0.6, 0);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = st.color;
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = W * 0.01;
+
+  // shrink the title until it fits in 4 lines
+  let size = W * (promo ? 0.1 : 0.115);
+  let lines: string[] = [];
+  for (; size > W * 0.04; size -= 2) {
+    ctx.font = `${st.weight} ${size}px ${st.font}`;
+    lines = wrap(ctx, fmt(o.title), maxW);
+    if (lines.length <= 4) break;
+  }
+  const lh = size * 1.15;
+  let y = promo ? (H - lines.length * lh) / 2 - (o.subtitle ? size * 0.4 : 0) : H * 0.07;
+  lines.forEach((l) => {
+    ctx.fillText(l, cx, y);
+    y += lh;
+  });
+
+  if (o.subtitle) {
+    const ss = size * 0.4;
+    ctx.font = `400 ${ss}px ${st.font}`;
+    y += ss * 0.5;
+    for (const l of wrap(ctx, o.subtitle, maxW).slice(0, 3)) {
+      ctx.fillText(l, cx, y);
+      y += ss * 1.3;
+    }
+  }
+  if (o.author) {
+    const as = W * 0.05;
+    ctx.font = `600 ${as}px ${st.font}`;
+    ctx.textBaseline = "bottom";
+    ctx.fillText(fmt(o.author), cx, promo ? H * 0.9 : H * 0.95);
+  }
+  return canvas.toDataURL("image/png");
+}
+
 export function CoverStudio({ projectId, title: defaultTitle, niche }: Props) {
   const [title, setTitle] = useState(defaultTitle);
   const [subtitle, setSubtitle] = useState("");
@@ -34,14 +132,12 @@ export function CoverStudio({ projectId, title: defaultTitle, niche }: Props) {
     try {
       const res = await post<{ image: Result["image"] }>("/api/cover-generate", {
         projectId,
-        title,
-        subtitle,
-        author,
         niche,
         template,
         kind,
       });
-      setResults((r) => [{ image: res.image, kind, template }, ...r]);
+      const dataUrl = await overlayText(res.image.dataUrl, { title, subtitle, author, template, kind });
+      setResults((r) => [{ image: { dataUrl, mimeType: "image/png" }, kind, template }, ...r]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Image generation failed");
     } finally {

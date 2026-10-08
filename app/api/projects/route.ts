@@ -38,14 +38,16 @@ export async function POST(req: NextRequest) {
 /** Save the project's standing writing instructions. */
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, writingInstructions, kind, bookBrief } = (await req.json()) as {
+    const { id, writingInstructions, kind, bookBrief, autoResearch, autoResearchEveryDays } = (await req.json()) as {
       id?: string;
       writingInstructions?: string;
       kind?: string;
       bookBrief?: string;
+      autoResearch?: boolean;
+      autoResearchEveryDays?: number;
     };
     if (!id) return apiError("id is required", 400);
-    if (writingInstructions === undefined && kind === undefined && bookBrief === undefined) return apiError("Nothing to update", 400);
+    if (writingInstructions === undefined && kind === undefined && bookBrief === undefined && autoResearch === undefined && autoResearchEveryDays === undefined) return apiError("Nothing to update", 400);
     if (kind !== undefined && kind !== "fiction" && kind !== "nonfiction") return apiError("kind must be fiction or nonfiction", 400);
     const project = await prisma.project.update({
       where: { id },
@@ -53,9 +55,25 @@ export async function PATCH(req: NextRequest) {
         ...(writingInstructions !== undefined && { writingInstructions: writingInstructions.slice(0, 8000) }),
         ...(kind !== undefined && { kind }),
         ...(bookBrief !== undefined && { bookBrief: bookBrief.slice(0, 8000) }),
+        ...(autoResearch !== undefined && { autoResearch: Boolean(autoResearch) }),
+        ...(autoResearchEveryDays !== undefined && { autoResearchEveryDays: Math.min(30, Math.max(1, Math.round(autoResearchEveryDays) || 1)) }),
       },
     });
     return NextResponse.json({ project });
+  } catch (e) {
+    return apiError(e);
+  }
+}
+
+/** Delete a project and everything under it (blueprint, reports, chapters, documents, characters). */
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return apiError("id is required", 400);
+    const user = await getDefaultUser();
+    const { count } = await prisma.project.deleteMany({ where: { id, userId: user.id } });
+    if (count === 0) return apiError("Project not found", 404);
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return apiError(e);
   }

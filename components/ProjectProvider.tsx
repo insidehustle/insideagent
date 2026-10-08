@@ -11,6 +11,9 @@ export interface ProjectSummary {
   writingInstructions: string;
   kind: string;
   bookBrief: string;
+  autoResearch: boolean;
+  autoResearchEveryDays: number;
+  lastAutoResearchAt: string | null;
   blueprint: { id: string } | null;
   _count: { chapters: number; outlierReports: number };
 }
@@ -23,6 +26,7 @@ interface Ctx {
   select: (id: string) => void;
   refresh: () => Promise<void>;
   create: (title: string, niche: string) => Promise<void>;
+  remove: (id: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<Ctx | null>(null);
@@ -73,14 +77,31 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     [refresh, select],
   );
 
+  const remove = useCallback(
+    async (id: string) => {
+      await api(`/api/projects?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      setCurrentId((cur) => {
+        if (cur !== id) return cur;
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // storage unavailable
+        }
+        return null;
+      });
+      await refresh();
+    },
+    [refresh],
+  );
+
   const current = useMemo(
     () => projects.find((p) => p.id === currentId) ?? projects[0] ?? null,
     [projects, currentId],
   );
 
   const value = useMemo(
-    () => ({ projects, current, loading, error, select, refresh, create }),
-    [projects, current, loading, error, select, refresh, create],
+    () => ({ projects, current, loading, error, select, refresh, create, remove }),
+    [projects, current, loading, error, select, refresh, create, remove],
   );
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 }

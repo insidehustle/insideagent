@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** multipart/form-data: projectId, file (.txt, .md, .pdf). Stores the text for use when writing. */
+/** multipart/form-data: projectId, file (.txt, .md, .docx, .pdf). Stores the text for use when writing. */
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
