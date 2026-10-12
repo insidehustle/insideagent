@@ -15,7 +15,7 @@ function LoginCard() {
       <p className="text-sm font-medium uppercase tracking-widest text-accent">Book Automation System</p>
       <h1 className="mt-3 font-serif text-3xl">Sign in</h1>
       <p className="mt-2 text-sm text-ink-700">Your projects are private to your Google account.</p>
-      {failed && <p className="mt-4 text-sm text-red-700">Sign-in failed. Try again.</p>}
+      {failed && <p className="mt-4 text-sm text-red-700">Sign-in failed. Try again. <span className="text-ink-700/70">(error: {failed})</span></p>}
       <button
         disabled={busy}
         onClick={() => {
