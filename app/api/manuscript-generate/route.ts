@@ -8,6 +8,7 @@ import type { BookKind } from "@/lib/frameworks/fiction";
 import { cleanProse } from "@/lib/anti-ai";
 import { getCharactersBlock, findNewNames } from "@/lib/characters";
 import { getOutlineReferences, getReferences, getWritingInstructions } from "@/lib/references";
+import { requireChapter, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -56,6 +57,8 @@ function endingOf(text: string, chars = 700): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Body;
+    if (body.action === "chapter") await requireChapter(body.chapterId);
+    else if (body.projectId) await requireProject(body.projectId);
 
     if (body.action === "outline") {
       const project = await prisma.project.findUnique({

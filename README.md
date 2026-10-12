@@ -11,7 +11,7 @@ npm run db:push                  # create tables (loads .env.local)
 npm run dev
 ```
 
-Required: `DATABASE_URL`, `GROQ_API_KEY`. `TAVILY_API_KEY` is needed for web research, `GEMINI_API_KEY` for cover images.
+Required: `DATABASE_URL`, `GROQ_API_KEY`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Create the Google OAuth client (type Web application) at console.cloud.google.com/apis/credentials and add `<NEXTAUTH_URL>/api/auth/callback/google` as an authorized redirect URI. `TAVILY_API_KEY` is needed for web research, `GEMINI_API_KEY` for cover images.
 
 ## Flow
 
@@ -31,6 +31,7 @@ Push to GitHub, import the repo, set the env vars from `.env.example`, and use a
 
 ## Known limits
 
-- No authentication: everything belongs to one default user (`lib/utils.ts#getDefaultUser`). Add auth before exposing this publicly, because the API routes spend your API credits.
+- Sign-in is Google only. Anyone with a Google account can sign in and spend your API credits; restrict it in the `signIn` callback in `lib/auth.ts` if you need an allowlist.
+- Projects created before sign-in existed belong to the placeholder user `author@local.dev`. Reassign them with SQL (`UPDATE "Project" SET "userId" = ...`) if you want them under your Google account.
 - Dictation uses the browser Web Speech API (Chrome/Edge). No Whisper endpoint is included.
 - Image output is returned as a data URL and is not persisted.

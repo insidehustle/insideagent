@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractText, MAX_UPLOAD_BYTES } from "@/lib/extract-text";
 import { saveDocument } from "@/lib/references";
+import { requireDocument, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     const documents = await prisma.sourceDocument.findMany({
       where: { projectId },
       orderBy: { createdAt: "desc" },
@@ -33,8 +35,7 @@ export async function POST(req: NextRequest) {
     if (!projectId) return apiError("projectId is required", 400);
     if (!(file instanceof File)) return apiError("file is required", 400);
     if (file.size > MAX_UPLOAD_BYTES) return apiError("File exceeds the 10 MB limit", 413);
-    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
-    if (!project) return apiError("Project not found", 404);
+    await requireProject(projectId);
 
     const text = (await extractText(file)).trim();
     if (!text) return apiError("No readable text found. Scanned PDFs need to be converted to text first.", 422);
@@ -52,6 +53,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const { id, useForWriting } = (await req.json()) as { id?: string; useForWriting?: boolean };
     if (!id || typeof useForWriting !== "boolean") return apiError("id and useForWriting are required", 400);
+    await requireDocument(id);
     const document = await prisma.sourceDocument.update({ where: { id }, data: { useForWriting }, select: listSelect });
     return NextResponse.json({ document });
   } catch (e) {
@@ -63,6 +65,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return apiError("id is required", 400);
+    await requireDocument(id);
     await prisma.sourceDocument.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

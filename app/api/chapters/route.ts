@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireChapter, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -8,6 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     const chapters = await prisma.chapter.findMany({ where: { projectId }, orderBy: { order: "asc" } });
     return NextResponse.json({ chapters });
   } catch (e) {
@@ -20,6 +22,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     const { count } = await prisma.chapter.deleteMany({ where: { projectId } });
     return NextResponse.json({ deleted: count });
   } catch (e) {
@@ -40,6 +43,7 @@ export async function PATCH(req: NextRequest) {
       status?: string;
     };
     if (!id) return apiError("id is required", 400);
+    await requireChapter(id);
     const chapter = await prisma.chapter.update({
       where: { id },
       data: {

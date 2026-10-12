@@ -10,6 +10,7 @@ import {
 } from "@/lib/frameworks/outlier-evaluator";
 import { extractText, MAX_UPLOAD_BYTES } from "@/lib/extract-text";
 import { saveDocument } from "@/lib/references";
+import { requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -37,8 +38,7 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof File)) return apiError("file is required", 400);
     if (file.size > MAX_UPLOAD_BYTES) return apiError("File exceeds the 10 MB limit", 413);
 
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) return apiError("Project not found", 404);
+    const project = await requireProject(projectId);
     const niche = String(form.get("niche") ?? "").trim() || project.niche;
 
     const text = (await extractText(file)).trim();
@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     const reports = await prisma.outlierReport.findMany({
       where: { projectId },
       orderBy: { createdAt: "desc" },

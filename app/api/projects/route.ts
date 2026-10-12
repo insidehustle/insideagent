@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiError, getDefaultUser } from "@/lib/utils";
+import { requireProject, requireUser } from "@/lib/auth";
+import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const projects = await prisma.project.findMany({
       where: { userId: user.id },
       orderBy: { updatedAt: "desc" },
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   try {
     const { title, niche } = (await req.json()) as { title?: string; niche?: string };
     if (!title?.trim() || !niche?.trim()) return apiError("title and niche are required", 400);
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const project = await prisma.project.create({
       data: { userId: user.id, title: title.trim(), niche: niche.trim() },
     });
@@ -49,6 +50,7 @@ export async function PATCH(req: NextRequest) {
     if (!id) return apiError("id is required", 400);
     if (writingInstructions === undefined && kind === undefined && bookBrief === undefined && autoResearch === undefined && autoResearchEveryDays === undefined) return apiError("Nothing to update", 400);
     if (kind !== undefined && kind !== "fiction" && kind !== "nonfiction") return apiError("kind must be fiction or nonfiction", 400);
+    await requireProject(id);
     const project = await prisma.project.update({
       where: { id },
       data: {
@@ -70,7 +72,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return apiError("id is required", 400);
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const { count } = await prisma.project.deleteMany({ where: { id, userId: user.id } });
     if (count === 0) return apiError("Project not found", 404);
     return NextResponse.json({ ok: true });

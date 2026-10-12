@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, BookText, Compass, Image as ImageIcon, LayoutDashboard, Megaphone, PenLine, Plus } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import { BookOpenText, BookText, Compass, Image as ImageIcon, LayoutDashboard, LogOut, Megaphone, PenLine, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ProjectProvider, useProject } from "./ProjectProvider";
 
@@ -18,6 +19,7 @@ const NAV = [
 function Sidebar() {
   const pathname = usePathname();
   const { projects, current, select } = useProject();
+  const { data: session } = useSession();
   return (
     <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-ink-200 bg-white p-4 md:w-64 md:border-b-0 md:border-r">
       <Link href="/" className="font-serif text-lg font-semibold">
@@ -62,7 +64,15 @@ function Sidebar() {
           );
         })}
       </nav>
-      <p className="mt-auto hidden items-center gap-2 text-xs text-ink-700/60 md:flex">
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-ink-200 pt-4 text-xs text-ink-700">
+        <span className="truncate" title={session?.user?.email ?? ""}>
+          {session?.user?.email}
+        </span>
+        <button onClick={() => void signOut({ callbackUrl: "/login" })} className="flex shrink-0 items-center gap-1 hover:text-accent-dark">
+          <LogOut size={12} /> Sign out
+        </button>
+      </div>
+      <p className="hidden items-center gap-2 text-xs text-ink-700/60 md:flex">
         <ImageIcon size={12} /> Cover Studio lives in Marketing
       </p>
     </aside>

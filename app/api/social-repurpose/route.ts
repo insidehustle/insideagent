@@ -4,6 +4,7 @@ import { askLLMJson, MODEL_WRITER } from "@/lib/llm";
 import { getBlueprintMarkdown } from "@/lib/markdown-store";
 import { getWritingInstructions } from "@/lib/references";
 import { ANTI_AI_SOCIAL_RULES, findAiTells, sanitizeSocialText } from "@/lib/anti-ai";
+import { requireChapter, requireProject, requireUser } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -33,11 +34,12 @@ export async function POST(req: NextRequest) {
     const platform: Platform = body.platform === "x" ? "x" : "linkedin";
     const count = Math.min(Math.max(body.count ?? 3, 1), 6);
 
+    await requireUser();
     let source = body.text?.trim() ?? "";
     let projectId = body.projectId;
+    if (projectId) await requireProject(projectId);
     if (body.chapterId) {
-      const chapter = await prisma.chapter.findUnique({ where: { id: body.chapterId } });
-      if (!chapter) return apiError("Chapter not found", 404);
+      const chapter = await requireChapter(body.chapterId);
       source = chapter.content;
       projectId = chapter.projectId;
     }

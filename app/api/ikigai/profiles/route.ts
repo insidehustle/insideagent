@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { saveBlueprint } from "@/lib/markdown-store";
-import { apiError, getDefaultUser } from "@/lib/utils";
+import { requireUser } from "@/lib/auth";
+import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const profiles = await prisma.authorProfile.findMany({
       where: { userId: user.id },
       orderBy: { name: "asc" },
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     const bp = await prisma.authorBlueprint.findUnique({ where: { projectId } });
     if (!bp) return apiError("Generate this project's blueprint first", 404);
 
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const data = {
       loves: bp.loves,
       goodAt: bp.goodAt,
@@ -59,7 +60,7 @@ export async function PUT(req: NextRequest) {
   try {
     const { projectId, profileId } = (await req.json()) as { projectId?: string; profileId?: string };
     if (!projectId || !profileId) return apiError("projectId and profileId are required", 400);
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const profile = await prisma.authorProfile.findFirst({ where: { id: profileId, userId: user.id } });
     if (!profile) return apiError("Profile not found", 404);
     const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -77,7 +78,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return apiError("id is required", 400);
-    const user = await getDefaultUser();
+    const user = await requireUser();
     const { count } = await prisma.authorProfile.deleteMany({ where: { id, userId: user.id } });
     if (count === 0) return apiError("Profile not found", 404);
     return NextResponse.json({ ok: true });

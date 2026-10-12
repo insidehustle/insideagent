@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { detectCharacters, listCharacters } from "@/lib/characters";
+import { requireCharacter, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     return NextResponse.json({ characters: await listCharacters(projectId) });
   } catch (e) {
     return apiError(e);
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
       aliases?: string;
     };
     if (!body.projectId) return apiError("projectId is required", 400);
+    await requireProject(body.projectId);
 
     if (body.action === "detect") {
       const result = await detectCharacters(body.projectId);
@@ -65,6 +68,7 @@ export async function PATCH(req: NextRequest) {
       aliases?: string;
     };
     if (!id) return apiError("id is required", 400);
+    await requireCharacter(id);
     const character = await prisma.character.update({
       where: { id },
       data: {
@@ -85,6 +89,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) return apiError("id is required", 400);
+    await requireCharacter(id);
     await prisma.character.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

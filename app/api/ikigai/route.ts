@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { askLLM } from "@/lib/llm";
 import { saveBlueprint, updateBlueprintMarkdown, type BlueprintInput } from "@/lib/markdown-store";
 import { cleanProse } from "@/lib/anti-ai";
+import { requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -59,8 +60,7 @@ export async function POST(req: NextRequest) {
     if (![loves, goodAt, marketNeeds, monetization].every((v) => v?.trim()))
       return apiError("All four Ikigai pillars are required", 400);
 
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project) return apiError("Project not found", 404);
+    const project = await requireProject(projectId);
 
     const input = {
       loves: loves!.trim(),
@@ -85,6 +85,7 @@ export async function PUT(req: NextRequest) {
   try {
     const { projectId, markdownContent } = (await req.json()) as { projectId?: string; markdownContent?: string };
     if (!projectId || typeof markdownContent !== "string") return apiError("projectId and markdownContent are required", 400);
+    await requireProject(projectId);
     const existing = await prisma.authorBlueprint.findUnique({ where: { projectId } });
     if (!existing) return apiError("No blueprint exists for this project yet", 404);
     const blueprint = await updateBlueprintMarkdown(projectId, markdownContent);
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) return apiError("projectId is required", 400);
+    await requireProject(projectId);
     const blueprint = await prisma.authorBlueprint.findUnique({ where: { projectId } });
     return NextResponse.json({ blueprint });
   } catch (e) {
