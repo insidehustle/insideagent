@@ -13,6 +13,8 @@ interface Props {
   count: number;
   onOutline: (chapters: ChapterRow[]) => void;
   onChapter: (chapter: ChapterRow) => void;
+  /** Called after a safety snapshot was saved, so the snapshot list can refresh. */
+  onSnapshot?: () => void;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -22,7 +24,7 @@ const isRateLimit = (m: string) => /rate.?limit|429|try again|tokens per minute/
  * Writes the whole book unattended: detects characters, outlines from your documents and instructions,
  * then drafts every chapter in order, each continuing from the last. Safe to stop and resume.
  */
-export function BookAutopilot({ projectId, count, onOutline, onChapter }: Props) {
+export function BookAutopilot({ projectId, count, onOutline, onChapter, onSnapshot }: Props) {
   const [words, setWords] = useState(1500);
   const [redraft, setRedraft] = useState(false);
   const [running, setRunning] = useState(false);
@@ -73,6 +75,13 @@ export function BookAutopilot({ projectId, count, onOutline, onChapter }: Props)
         );
         chapters = res.chapters;
         onOutline(chapters);
+      }
+
+      // keep a copy of the book as it is now, so the whole run can be undone
+      if (chapters.some((c) => c.status !== "outline")) {
+        setStatus("Saving a snapshot of the current book…");
+        await post("/api/snapshots", { projectId, action: "create", source: "autopilot", label: "Before Autopilot" });
+        onSnapshot?.();
       }
 
       // 3. chapters, in order, so each can continue from the one before

@@ -40,6 +40,7 @@ model Project {
   chapters            Chapter[]
   documents           SourceDocument[]
   characters          Character[]
+  snapshots           ProjectSnapshot[]
 
   @@index([userId])
 }
@@ -92,6 +93,7 @@ model Chapter {
   /// Auto-generated plan for this chapter: summary, key points, characters, source documents
   brief          String   @default("")
   updatedAt      DateTime @updatedAt
+  versions       ChapterVersion[]
 
   @@unique([projectId, order])
   @@index([projectId])
@@ -146,4 +148,35 @@ model AuthorProfile {
   updatedAt       DateTime @updatedAt
 
   @@unique([userId, name])
+}
+
+/// A saved copy of a chapter's text, taken before it is overwritten (redraft, AI edit, restore) or periodically while editing.
+model ChapterVersion {
+  id        String   @id @default(cuid())
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  wordCount Int      @default(0)
+  /// manual | autosave | redraft | ai-edit | listen-edit | restore
+  source    String   @default("manual")
+  label     String   @default("")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([chapterId, createdAt])
+}
+
+/// A whole-project backup (brief, instructions, blueprint, all chapters) as JSON, taken at milestones and before destructive actions.
+model ProjectSnapshot {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label     String   @default("")
+  /// manual | autopilot | delete-chapters | restore
+  source    String   @default("manual")
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }

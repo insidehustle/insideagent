@@ -8,6 +8,7 @@ import type { BookKind } from "@/lib/frameworks/fiction";
 import { cleanProse } from "@/lib/anti-ai";
 import { getCharactersBlock, findNewNames } from "@/lib/characters";
 import { getOutlineReferences, getReferences, getWritingInstructions } from "@/lib/references";
+import { saveChapterVersion } from "@/lib/versions";
 import { requireChapter, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ function formatBrief(it: OutlineItem, realDocs: Set<string>): string {
 }
 
 type Body =
-  | { action: "outline"; projectId: string; chapterCount?: number }
+  | { action: "outline"; projectId: string; chapterCount?: number; templateDocId?: string }
   | { action: "chapter"; chapterId: string; instruction?: string; wordTarget?: number }
   | { action: "edit"; projectId: string; selection: string; instruction: string; context?: string }
   | { action: "alternatives"; projectId: string; word: string; sentence: string };
@@ -69,7 +70,20 @@ export async function POST(req: NextRequest) {
       const count = Math.min(Math.max(body.chapterCount ?? 10, 3), 30);
       const blueprint = await getBlueprintMarkdown(project.id);
       // sample evenly across every uploaded document so the plan reflects all of the material
-      const refs = await getOutlineReferences(project.id, `${project.title} ${project.niche} ${project.writingInstructions}`);
+      // "Create my version": plan from one chosen source only, borrowing its structure and ideas, never its wording
+      let templateNote = "";
+      if (body.templateDocId) {
+        const owns = await prisma.sourceDocument.count({ where: { id: body.templateDocId, projectId: project.id } });
+        if (!owns) return apiError("Source document not found", 404);
+        templateNote =
+          "CREATE AN ORIGINAL VERSION of the single source document shown in the reference material. Mirror its overall structure, sequence of ideas and the value it delivers to the reader, then improve on it: fill the market gaps, use the author's own voice, stories and examples, and reorder or add chapters where that serves the reader better. Do not copy its sentences, titles or examples; every chapter must be newly conceived.";
+      }
+      const refs = await getOutlineReferences(
+        project.id,
+        `${project.title} ${project.niche} ${project.writingInstructions}`,
+        undefined,
+        body.templateDocId,
+      );
       const characters = await getCharactersBlock(project.id);
       const first = await askLLMJson<{ bookBrief?: string; chapters: OutlineItem[] }>(
         outlinePrompt({
@@ -78,7 +92,7 @@ export async function POST(req: NextRequest) {
           blueprint,
           chapterCount: count,
           marketGaps: project.outlierReports[0]?.marketGaps ?? [],
-          instructions: project.writingInstructions,
+          instructions: [project.writingInstructions, templateNote].filter(Boolean).join("\n\n"),
           references: refs.block,
           characters,
           kind: project.kind as BookKind,
@@ -180,6 +194,8 @@ export async function POST(req: NextRequest) {
         { maxTokens: 32000 },
       );
       const content = cleanProse(draft);
+      // keep the text being replaced; a failure here must stop the redraft rather than lose writing
+      await saveChapterVersion(chapter.id, "redraft", { force: true });
       const updated = await prisma.chapter.update({
         where: { id: chapter.id },
         data: { content, status: "drafted", instructions: instruction },

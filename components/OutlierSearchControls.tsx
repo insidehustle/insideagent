@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { Button, Card, ErrorNote, Label } from "./ui/kit";
 import { OutlierScoreCard, type OutlierReportView } from "./OutlierScoreCard";
 import { AutoResearchPanel } from "./AutoResearchPanel";
+import { ImportLink } from "./ImportLink";
 
 export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: string; defaultNiche: string }) {
   const [mode, setMode] = useState<"web" | "file">("web");
@@ -103,19 +104,21 @@ export function OutlierSearchControls({ projectId, defaultNiche }: { projectId: 
         </Button>
       </Card>
 
+      <ImportLink projectId={projectId} />
+
       <AutoResearchPanel projectId={projectId} />
 
       {reports.length === 0 ? (
         <p className="text-sm text-ink-700">No reports yet.</p>
       ) : (
         <>
-          <OutlierScoreCard report={reports[0]} />
+          <OutlierScoreCard report={reports[0]} projectId={projectId} />
           {reports.length > 1 && (
             <details className="text-sm">
               <summary className="cursor-pointer text-ink-700">Earlier reports ({reports.length - 1})</summary>
               <div className="mt-4 space-y-8">
                 {reports.slice(1).map((r) => (
-                  <OutlierScoreCard key={r.id} report={r} />
+                  <OutlierScoreCard key={r.id} report={r} projectId={projectId} />
                 ))}
               </div>
             </details>

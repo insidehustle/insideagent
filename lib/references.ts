@@ -56,9 +56,9 @@ export interface ReferenceResult {
   sources: string[];
 }
 
-async function loadChunks(projectId: string) {
+async function loadChunks(projectId: string, onlyDocId?: string) {
   const docs = await prisma.sourceDocument.findMany({
-    where: { projectId, useForWriting: true },
+    where: { projectId, ...(onlyDocId ? { id: onlyDocId } : { useForWriting: true }) },
     select: { name: true, text: true },
     orderBy: { createdAt: "asc" },
   });
@@ -135,8 +135,8 @@ export async function getReferences(projectId: string, query: string, budget = D
  * outline reflects all of the material rather than only the passages that match a keyword query.
  * Part of the budget is then spent on the passages most relevant to `query`.
  */
-export async function getOutlineReferences(projectId: string, query: string, budget = DEFAULT_BUDGET): Promise<ReferenceResult> {
-  const { docs, chunks } = await loadChunks(projectId);
+export async function getOutlineReferences(projectId: string, query: string, budget = DEFAULT_BUDGET, onlyDocId?: string): Promise<ReferenceResult> {
+  const { docs, chunks } = await loadChunks(projectId, onlyDocId);
   if (docs.length === 0) return { block: "", sources: [] };
 
   const picked: Chunk[] = [];

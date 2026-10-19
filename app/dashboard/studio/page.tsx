@@ -10,6 +10,7 @@ import { useProject } from "@/components/ProjectProvider";
 import { ChapterEditor, type ChapterRow } from "@/components/ChapterEditor";
 import { CharactersPanel } from "@/components/CharactersPanel";
 import { ReferenceDocuments } from "@/components/ReferenceDocuments";
+import { SnapshotsPanel } from "@/components/SnapshotsPanel";
 import { RequireProject } from "@/components/RequireProject";
 import { WritingInstructions } from "@/components/WritingInstructions";
 import { CollapsibleCard, setAllPanels } from "@/components/ui/Collapsible";
@@ -22,8 +23,12 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
   // keep the raw text so typing "1" on the way to "12" is not rewritten while the field is being edited
   const [countText, setCountText] = useState("10");
   const count = Math.min(30, Math.max(3, Math.round(Number(countText)) || 3));
+  const [templateId, setTemplateId] = useState("");
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // bumped whenever a snapshot is made elsewhere, so the snapshot list reloads
+  const [snapshotTick, setSnapshotTick] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -41,6 +46,20 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
     void load();
   }, [load]);
 
+  async function loadSources() {
+    try {
+      const { documents } = await api<{ documents: { id: string; name: string }[] }>(`/api/documents?projectId=${projectId}`);
+      setSources(documents);
+      setTemplateId((id) => (documents.some((d) => d.id === id) ? id : ""));
+    } catch {
+      // the selector is optional
+    }
+  }
+
+  useEffect(() => {
+    void loadSources();
+  }, [projectId]);
+
   async function outline() {
     setBusy(true);
     setError(null);
@@ -49,6 +68,7 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
         action: "outline",
         projectId,
         chapterCount: count,
+        ...(templateId ? { templateDocId: templateId } : {}),
       });
       setChapters(chapters);
       setActiveId(chapters[0]?.id ?? null);
@@ -62,7 +82,7 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
 
   async function deleteAll() {
     const drafted = chapters.filter((c) => c.status !== "outline").length;
-    const msg = `Delete all ${chapters.length} chapters${drafted ? `, including ${drafted} drafted` : ""}? This cannot be undone.`;
+    const msg = `Delete all ${chapters.length} chapters${drafted ? `, including ${drafted} drafted` : ""}? A snapshot is saved first, so you can restore them from Project snapshots.`;
     if (!window.confirm(msg)) return;
     setBusy(true);
     setError(null);
@@ -70,6 +90,7 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
       await api(`/api/chapters?projectId=${projectId}`, { method: "DELETE" });
       setChapters([]);
       setActiveId(null);
+      setSnapshotTick((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
     } finally {
@@ -99,6 +120,17 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
               onChange={(e) => setCountText(e.target.value)}
               onBlur={() => setCountText(String(count))}
             />
+          </label>
+          <label className="block">
+            <Label hint="Pick a book, video transcript or page from Research to write your own original version of it.">Create my version of</Label>
+            <select className="w-full" value={templateId} onFocus={loadSources} onChange={(e) => setTemplateId(e.target.value)}>
+              <option value="">All reference documents</option>
+              {sources.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
           </label>
           <Button onClick={outline} loading={busy} className="w-full">
             <ListTree size={14} /> {chapters.length ? "Regenerate outline" : "Generate outline"}
@@ -135,8 +167,18 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
         <WritingInstructions projectId={projectId} saved={instructions} />
         <ReferenceDocuments projectId={projectId} />
         <CharactersPanel projectId={projectId} />
+        <SnapshotsPanel
+          projectId={projectId}
+          refreshKey={snapshotTick}
+          onRestored={(cs) => {
+            setChapters(cs);
+            setActiveId((id) => (id && cs.some((c) => c.id === id) ? id : cs[0]?.id ?? null));
+            void refresh();
+          }}
+        />
         <BookAutopilot
           projectId={projectId}
+          onSnapshot={() => setSnapshotTick((n) => n + 1)}
           count={count}
           onOutline={(cs) => {
             setChapters(cs);

@@ -5,6 +5,7 @@ import { FileText, Trash2, Upload } from "lucide-react";
 import { api, patch } from "@/lib/client";
 import { Button, ErrorNote } from "./ui/kit";
 import { CollapsibleCard } from "./ui/Collapsible";
+import { ImportLink } from "./ImportLink";
 
 interface Doc {
   id: string;
@@ -81,6 +82,7 @@ export function ReferenceDocuments({ projectId }: { projectId: string }) {
       <Button variant="secondary" onClick={() => input.current?.click()} loading={busy} className="w-full">
         <Upload size={14} /> Upload files
       </Button>
+      <ImportLink projectId={projectId} onImported={load} compact />
       <ErrorNote message={error} />
       {docs.length === 0 ? (
         <p className="text-xs text-ink-700">No documents yet. Files uploaded on the Research page appear here too.</p>

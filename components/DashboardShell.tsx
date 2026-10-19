@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { BookOpenText, BookText, Compass, Image as ImageIcon, LayoutDashboard, LogOut, Megaphone, PenLine, Plus } from "lucide-react";
+import { BookOpenText, BookText, Compass, GraduationCap, Image as ImageIcon, LayoutDashboard, LogOut, Megaphone, PenLine, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ProjectProvider, useProject } from "./ProjectProvider";
 
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/dashboard/studio", label: "Content Studio", icon: PenLine },
   { href: "/dashboard/manuscript", label: "Manuscript", icon: BookText },
   { href: "/dashboard/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/dashboard/tutorial", label: "Tutorial", icon: GraduationCap },
 ];
 
 function Sidebar() {

@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { BookPlus, Check } from "lucide-react";
+import { post } from "@/lib/client";
 import { scoreLabel, WEIGHTS, type Competitor, type OutlierSubscores } from "@/lib/frameworks/outlier-evaluator";
 import { cn } from "@/lib/cn";
 import { Card, Markdown } from "./ui/kit";
@@ -27,7 +30,48 @@ const SUB_LABELS: Record<keyof OutlierSubscores, string> = {
   monetizationPotential: "Monetization",
 };
 
-export function OutlierScoreCard({ report }: { report: OutlierReportView }) {
+/** Saves a competitor's summary (and its page, when reachable) as a reference document for Content Studio. */
+function UseAsReference({ projectId, c }: { projectId: string; c: Competitor }) {
+  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  const [err, setErr] = useState<string | null>(null);
+  async function save() {
+    setState("busy");
+    setErr(null);
+    const summary = `# ${c.title}${c.author ? ` by ${c.author}` : ""}
+
+Positioning: ${c.positioning}
+
+Weakness readers report: ${c.weakness}`;
+    try {
+      let imported = false;
+      if (c.sourceUrl) {
+        try {
+          await post("/api/documents/import", { projectId, url: c.sourceUrl });
+          imported = true;
+        } catch {
+          // page unreachable: fall back to the summary alone
+        }
+      }
+      await post("/api/documents/import", { projectId, name: `Competitor: ${c.title}`, text: summary });
+      setState("done");
+      if (!imported && c.sourceUrl) setErr("Saved the summary only; the linked page could not be read.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not save");
+      setState("idle");
+    }
+  }
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <button onClick={save} disabled={state !== "idle"} className="inline-flex items-center gap-1 text-xs text-accent underline disabled:no-underline disabled:opacity-70">
+        {state === "done" ? <Check size={12} /> : <BookPlus size={12} />}
+        {state === "done" ? "Saved as reference" : state === "busy" ? "Saving…" : "Use as reference"}
+      </button>
+      {err && <span className="text-xs text-red-700">{err}</span>}
+    </div>
+  );
+}
+
+export function OutlierScoreCard({ report, projectId }: { report: OutlierReportView; projectId?: string }) {
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const competitors = report.competitorsJson?.competitors ?? [];
@@ -119,6 +163,7 @@ export function OutlierScoreCard({ report }: { report: OutlierReportView }) {
                 <p>
                   <span className="font-medium">Weakness:</span> {c.weakness}
                 </p>
+                {projectId && <UseAsReference projectId={projectId} c={c} />}
               </li>
             ))}
           </ul>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Headphones, Save, Sparkles, Wand2 } from "lucide-react";
+import { Headphones, History, Save, Sparkles, Wand2 } from "lucide-react";
 import { patch, post } from "@/lib/client";
 import { SEVEN_STEPS } from "@/lib/frameworks/seven-step-narrative";
 import { Button, Card, ErrorNote } from "./ui/kit";
+import { ChapterHistory } from "./ChapterHistory";
 import { ListenPlayer } from "./ListenPlayer";
 import { CollapsibleCard } from "./ui/Collapsible";
 
@@ -38,27 +39,95 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const [busy, setBusy] = useState<null | "save" | "draft" | "edit">(null);
   const [error, setError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [autoState, setAutoState] = useState<"idle" | "saving" | "failed">("idle");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
+  /** The text most recently sent to the server, so its echo does not overwrite what was typed since. */
+  const sentRef = useRef<string | null>(null);
+  const autosaving = useRef(false);
 
-  // reset local state when a different chapter (or a new draft) arrives
+  // show new text when it arrives from elsewhere (a draft, a restore); ignore the echo of our own saves
   useEffect(() => {
+    if (chapter.content === sentRef.current) return;
+    sentRef.current = null;
     setContent(chapter.content);
+    setSelection(null);
+  }, [chapter.content]);
+
+  useEffect(() => {
     setInstruction(chapter.instructions);
     setBrief(chapter.brief || (chapter.status === "outline" ? chapter.content : ""));
-    setSelection(null);
     setError(null);
-  }, [chapter.id, chapter.content, chapter.instructions, chapter.brief, chapter.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter.id, chapter.instructions, chapter.brief, chapter.status]);
 
   const dirty = content !== chapter.content;
+
+  // keep the latest values for the unmount flush below
+  const latest = useRef({ content, chapter, onUpdated });
+  latest.current = { content, chapter, onUpdated };
+
+  // save any unsaved text when leaving this chapter
+  useEffect(
+    () => () => {
+      const { content, chapter, onUpdated } = latest.current;
+      if (content === chapter.content) return;
+      patch<{ chapter: ChapterRow }>("/api/chapters", { id: chapter.id, content, versionSource: "autosave" })
+        .then((r) => onUpdated(r.chapter))
+        .catch(() => {});
+    },
+    [],
+  );
+
+  // warn before closing the tab with unsaved text
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  // autosave a few seconds after typing stops
+  useEffect(() => {
+    if (!dirty || busy) return;
+    const t = setTimeout(async () => {
+      if (autosaving.current) return;
+      autosaving.current = true;
+      setAutoState("saving");
+      try {
+        await persist(content, "autosave");
+        setAutoState("idle");
+      } catch {
+        setAutoState("failed");
+      } finally {
+        autosaving.current = false;
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, dirty, busy]);
+
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
   const step = SEVEN_STEPS.find((s) => String(s.order) === chapter.frameworkStep);
+
+  /** Writes chapter text; the server keeps the text it replaces as a version (always for ai-edit and listen-edit). */
+  async function persist(text: string, versionSource: string) {
+    sentRef.current = text;
+    const { chapter: saved } = await patch<{ chapter: ChapterRow }>("/api/chapters", { id: chapter.id, content: text, versionSource });
+    onUpdated(saved);
+    setSavedAt(new Date());
+    return saved;
+  }
 
   async function save() {
     setBusy("save");
     setError(null);
     try {
-      const { chapter: saved } = await patch<{ chapter: ChapterRow }>("/api/chapters", { id: chapter.id, content });
-      onUpdated(saved);
+      await persist(content, "manual");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -126,7 +195,11 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
         instruction: editInstruction,
         context: content.slice(Math.max(0, selection.start - 600), selection.end + 600),
       });
-      setContent(content.slice(0, selection.start) + text + content.slice(selection.end));
+      const next = content.slice(0, selection.start) + text + content.slice(selection.end);
+      // keep the text as it was before the rewrite, so the edit can be undone from History
+      if (dirty) await persist(content, "manual");
+      await persist(next, "ai-edit");
+      setContent(next);
       setSelection(null);
       setEditInstruction("");
     } catch (e) {
@@ -148,11 +221,16 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
           <p className="text-xs text-ink-700">
             {chapter.status === "outline" ? "Outline brief only" : chapter.status} · {words} words
             {step && ` · opens on: ${step.name}`}
+            {" · "}
+            {dirty ? (autoState === "failed" ? "Autosave failed, press Save" : "Unsaved changes") : savedAt ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Saved"}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setListening(true)} disabled={!content.trim()}>
             <Headphones size={14} /> Listen
+          </Button>
+          <Button variant="secondary" onClick={() => setHistoryOpen(true)}>
+            <History size={14} /> History
           </Button>
           <Button variant="secondary" onClick={() => save()} loading={busy === "save"} disabled={!dirty}>
             <Save size={14} /> Save
@@ -233,6 +311,20 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
         </p>
       )}
 
+      {historyOpen && (
+        <ChapterHistory
+          chapterId={chapter.id}
+          chapterTitle={`${chapter.order}. ${chapter.title}`}
+          currentText={content}
+          onClose={() => setHistoryOpen(false)}
+          onRestored={(restored) => {
+            sentRef.current = null;
+            onUpdated(restored);
+            setContent(restored.content);
+          }}
+        />
+      )}
+
       {listening && (
         <ListenPlayer
           text={content}
@@ -240,9 +332,9 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
           projectId={chapter.projectId}
           onClose={() => setListening(false)}
           onApply={async (revised) => {
+            if (dirty) await persist(content, "manual");
+            await persist(revised, "listen-edit");
             setContent(revised);
-            const { chapter: saved } = await patch<{ chapter: ChapterRow }>("/api/chapters", { id: chapter.id, content: revised });
-            onUpdated(saved);
           }}
         />
       )}
