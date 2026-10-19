@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { Rocket, Square } from "lucide-react";
-import { api, post } from "@/lib/client";
+import { api, ApiError, post } from "@/lib/client";
+import { formatWait, PROVIDER_LABEL } from "@/lib/errors";
 import { Button, ErrorNote, Label } from "./ui/kit";
 import { CollapsibleCard } from "./ui/Collapsible";
 import type { ChapterRow } from "./ChapterEditor";
@@ -40,9 +41,14 @@ export function BookAutopilot({ projectId, count, onOutline, onChapter, onSnapsh
         return await fn();
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (!isRateLimit(msg) || attempt >= 3 || stop.current) throw e;
-        for (let s = 45; s > 0 && !stop.current; s--) {
-          setStatus(`${label}: rate limit reached, waiting ${s}s before retrying…`);
+        const issue = e instanceof ApiError ? e.issue : undefined;
+        // a per-minute limit clears by waiting; a used-up allowance, bad key or outage does not, so stop and say why
+        const waitable = issue ? issue.code === "rate_limit" : isRateLimit(msg);
+        if (!waitable || attempt >= 3 || stop.current) throw e;
+        const who = issue?.provider ? PROVIDER_LABEL[issue.provider] : "The AI provider";
+        const total = Math.min(Math.max(issue?.retryAfterSec ?? 45, 10), 120);
+        for (let s = total; s > 0 && !stop.current; s--) {
+          setStatus(`Paused on ${label}: ${who} hit its per-minute limit. Retrying in ${formatWait(s)} (attempt ${attempt + 2} of 4).`);
           await sleep(1000);
         }
       }
@@ -102,8 +108,13 @@ export function BookAutopilot({ projectId, count, onOutline, onChapter, onSnapsh
       }
       setStatus(todo.length ? "Done. Every chapter is drafted." : "Nothing to write: every chapter is already drafted.");
     } catch (e) {
+      const issue = e instanceof ApiError ? e.issue : undefined;
       setError(e instanceof Error ? e.message : "Autopilot stopped unexpectedly");
-      setStatus("Stopped on an error. Press the button to resume where it left off.");
+      setStatus(
+        issue
+          ? `Paused: ${issue.title}. Chapters already written are kept. Press the button to resume once this is fixed.`
+          : "Stopped on an error. Press the button to resume where it left off.",
+      );
     } finally {
       setRunning(false);
     }

@@ -67,7 +67,11 @@ export async function askLLM(prompt: string, opts: AskOptions = {}): Promise<str
       const delay = retryDelayMs(e, attempt);
       // a request bigger than the per-minute limit can never succeed by waiting
       const tooLarge = /request too large/i.test((e as Error)?.message ?? "");
-      if (delay === null || tooLarge || attempt >= MAX_RETRIES || delay > MAX_WAIT_MS) throw e;
+      if (delay === null || tooLarge || attempt >= MAX_RETRIES || delay > MAX_WAIT_MS) {
+        // name the provider so the app can say which service ran out
+        if (e && typeof e === "object") (e as { provider?: string }).provider = "groq";
+        throw e;
+      }
       await sleep(delay + 500);
     }
   }
