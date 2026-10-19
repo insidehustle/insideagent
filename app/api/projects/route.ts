@@ -39,16 +39,17 @@ export async function POST(req: NextRequest) {
 /** Save the project's standing writing instructions. */
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, writingInstructions, kind, bookBrief, autoResearch, autoResearchEveryDays } = (await req.json()) as {
+    const { id, writingInstructions, kind, bookBrief, autoResearch, autoResearchEveryDays, wordGoal } = (await req.json()) as {
       id?: string;
       writingInstructions?: string;
       kind?: string;
       bookBrief?: string;
       autoResearch?: boolean;
       autoResearchEveryDays?: number;
+      wordGoal?: number;
     };
     if (!id) return apiError("id is required", 400);
-    if (writingInstructions === undefined && kind === undefined && bookBrief === undefined && autoResearch === undefined && autoResearchEveryDays === undefined) return apiError("Nothing to update", 400);
+    if (writingInstructions === undefined && kind === undefined && bookBrief === undefined && autoResearch === undefined && autoResearchEveryDays === undefined && wordGoal === undefined) return apiError("Nothing to update", 400);
     if (kind !== undefined && kind !== "fiction" && kind !== "nonfiction") return apiError("kind must be fiction or nonfiction", 400);
     await requireProject(id);
     const project = await prisma.project.update({
@@ -58,6 +59,7 @@ export async function PATCH(req: NextRequest) {
         ...(kind !== undefined && { kind }),
         ...(bookBrief !== undefined && { bookBrief: bookBrief.slice(0, 8000) }),
         ...(autoResearch !== undefined && { autoResearch: Boolean(autoResearch) }),
+        ...(wordGoal !== undefined && { wordGoal: Math.min(1_000_000, Math.max(0, Math.round(Number(wordGoal)) || 0)) }),
         ...(autoResearchEveryDays !== undefined && { autoResearchEveryDays: Math.min(30, Math.max(1, Math.round(autoResearchEveryDays) || 1)) }),
       },
     });

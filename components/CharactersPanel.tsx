@@ -157,6 +157,7 @@ export function CharactersPanel({ projectId }: { projectId: string }) {
       <form onSubmit={add} className="flex gap-2">
         <input
           className="min-w-0 flex-1 !py-1 text-sm"
+          aria-label="New character name"
           placeholder="Add a character by name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}

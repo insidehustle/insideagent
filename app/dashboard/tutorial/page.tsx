@@ -13,6 +13,8 @@ const STORAGE = "bas.tutorial";
 interface Saved {
   step: number;
   done: string[];
+  /** True when nothing was stored yet, so the walkthrough should open at the first step still to do */
+  fresh?: boolean;
 }
 
 function loadSaved(): Saved {
@@ -25,7 +27,7 @@ function loadSaved(): Saved {
   } catch {
     // storage unavailable or corrupt: start fresh
   }
-  return { step: 0, done: [] };
+  return { step: 0, done: [], fresh: true };
 }
 
 function Walkthrough() {
@@ -33,13 +35,30 @@ function Walkthrough() {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const [fresh, setFresh] = useState(false);
 
   useEffect(() => {
     const s = loadSaved();
     setStep(s.step);
     setDone(s.done);
+    setFresh(!!s.fresh);
     setReady(true);
   }, []);
+
+  // first visit: open at the first step this project has not finished
+  useEffect(() => {
+    if (!ready || !fresh || !current) return;
+    const firstTodo = WALKTHROUGH.findIndex((w) => {
+      if (w.id === "project") return false;
+      if (w.id === "blueprint") return !current.blueprint;
+      if (w.id === "research") return current._count.outlierReports === 0;
+      if (w.id === "outline") return current._count.chapters === 0;
+      return false;
+    });
+    // steps after the detectable ones cannot be told apart, so stop at the first detectable one that is open
+    if (firstTodo >= 0) setStep(firstTodo);
+    setFresh(false);
+  }, [ready, fresh, current]);
 
   useEffect(() => {
     if (!ready) return;

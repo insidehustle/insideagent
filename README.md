@@ -20,6 +20,28 @@ Required: `DATABASE_URL`, `GROQ_API_KEY`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GO
 3. **Research**: web search via Tavily or upload `.txt/.md/.pdf`. Produces an Outlier Score (1-100, computed in code from model-assessed sub-scores in `lib/frameworks/outlier-evaluator.ts`), market gaps, competitors, and a strategy report.
 4. **Content Studio**: generate an outline, draft chapters with the 7-step narrative opening, rewrite selections with AI.
 5. **Marketing**: Gemini covers/promo images, and LinkedIn/X posts passed through the anti-AI formatter (`lib/anti-ai.ts`).
+6. **Tutorial**: a guided walkthrough, feature guides and FAQ (content lives in `lib/tutorial.ts`). New authors are pointed to it from the Overview and after creating their first project.
+
+## Content Studio features
+
+- **Versions and snapshots**: every chapter keeps earlier versions (before redrafts, AI rewrites, splits, merges, restores, and periodically while editing), with a word-level comparison and restore. Whole-project snapshots (brief, instructions, blueprint, chapters) are taken before Autopilot, before deleting chapters and before a merge, and can be saved by hand. See `lib/versions.ts`, `lib/snapshots.ts`.
+- **Autosave**: text saves a few seconds after typing stops; the editor warns before the tab is closed with unsaved text.
+- **Chapter structure**: move chapters up and down, split a chapter at the cursor, merge with the next one (`lib/structure.ts`, `POST /api/chapters/structure`). Chapter order is unique per project, so shifts go through a parking range to avoid collisions.
+- **Continuity check**: exact scans (repeated wording, same openings, lopsided lengths, unknown names) plus an AI reading of each chapter's plan, opening and closing for contradictions and dropped threads (`lib/continuity.ts`). The AI part works from excerpts, so its findings are leads to verify. If the model is unavailable the exact scans still return.
+- **Progress**: a per-book word goal (`Project.wordGoal`), chapter lengths and a writing streak worked out from chapter edits (`GET /api/progress`).
+- **YouTube references**: Research can search YouTube for videos matching the book brief and import transcripts as reference documents (`lib/youtube-search.ts`, Tavily limited to youtube.com).
+
+## Updating an existing install
+
+Pull the latest code, then run `npm install` and `npm run db:push`. The schema has grown (chapter versions, project snapshots and a word goal) and the new features need those tables and columns. `db:push` only adds them. Restart the dev server afterwards so the regenerated Prisma client is picked up; on Windows, stop the server before `npm install` or `prisma generate` or the engine file will be locked.
+
+## When something is rate limited or out of credit
+
+The app explains which service stopped the work and what to do (`lib/errors.ts`): Groq (writing), Tavily (search), Gemini or Pollinations (images), the database or the network. A banner stays on screen with a countdown for rate limits, and long jobs such as Write the whole book pause and retry on their own for per-minute limits but stop with the reason for a used-up allowance, a bad key or an outage.
+
+## Accessibility and mobile
+
+The dashboard uses a menu drawer on phones. Dialogs (history, delete confirmation, menu, listen player) trap focus, close on Escape and return focus to what opened them (`components/ui/Modal.tsx`). There is a skip link, visible keyboard focus rings, labelled form fields and reduced-motion support. This was reviewed by reading the code, not with an automated audit or a screen reader, so run Lighthouse or axe before a public launch.
 
 ## Models
 

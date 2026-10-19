@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, Pin, RotateCcw, X } from "lucide-react";
+import { Bookmark, Pin, RotateCcw } from "lucide-react";
 import { api, patch, post } from "@/lib/client";
 import { cn } from "@/lib/cn";
 import { diffWords } from "@/lib/diff";
 import { Button, ErrorNote } from "./ui/kit";
+import { Modal } from "./ui/Modal";
 import type { ChapterRow } from "./ChapterEditor";
 
 interface Version {
@@ -26,6 +27,8 @@ const SOURCE_LABEL: Record<string, string> = {
   "ai-edit": "Before AI edit",
   "listen-edit": "Before read-aloud edit",
   restore: "Before restore",
+  split: "Before split",
+  merge: "Before merge",
 };
 
 const when = (iso: string) =>
@@ -112,22 +115,11 @@ export function ChapterHistory({ chapterId, chapterTitle, currentText, onClose, 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Version history">
-      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-3">
-          <div>
-            <h2 className="font-serif text-lg">Version history</h2>
-            <p className="text-xs text-ink-700">{chapterTitle}</p>
-          </div>
-          <Button variant="ghost" onClick={onClose} aria-label="Close">
-            <X size={16} />
-          </Button>
-        </div>
-
-        <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[17rem_1fr]">
-          <div className="min-h-0 space-y-3 overflow-y-auto border-b p-3 md:border-b-0 md:border-r">
+    <Modal title="Version history" subtitle={chapterTitle} onClose={onClose} className="max-w-5xl">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto md:grid-cols-[17rem_1fr] md:overflow-visible">
+          <div className="space-y-3 border-b p-3 md:min-h-0 md:overflow-y-auto md:border-b-0 md:border-r">
             <div className="flex gap-2">
-              <input className="min-w-0 flex-1 text-sm" placeholder="Name this version" value={labelDraft} onChange={(e) => setLabelDraft(e.target.value)} />
+              <input className="min-w-0 flex-1 text-sm" aria-label="Name for this version" placeholder="Name this version" value={labelDraft} onChange={(e) => setLabelDraft(e.target.value)} />
               <Button variant="secondary" onClick={saveNamed} loading={busy === "save"} aria-label="Save current text as a version">
                 <Bookmark size={14} />
               </Button>
@@ -138,12 +130,13 @@ export function ChapterHistory({ chapterId, chapterTitle, currentText, onClose, 
                 No earlier versions yet. One is kept automatically before every redraft, AI rewrite and restore, and while you edit.
               </p>
             )}
-            <ul className="space-y-1">
+            <ul className="max-h-48 space-y-1 overflow-y-auto md:max-h-none">
               {versions?.map((v) => (
                 <li key={v.id}>
                   <button
                     onClick={() => setSelectedId(v.id)}
-                    className={cn("block w-full rounded-lg px-3 py-2 text-left text-sm", v.id === selectedId ? "bg-accent-soft text-accent-dark" : "hover:bg-ink-100")}
+                    aria-pressed={v.id === selectedId}
+                    className={cn("block min-h-11 w-full rounded-lg px-3 py-2 text-left text-sm", v.id === selectedId ? "bg-accent-soft text-accent-dark" : "hover:bg-ink-100")}
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="font-medium">{v.label || SOURCE_LABEL[v.source] || v.source}</span>
@@ -158,7 +151,7 @@ export function ChapterHistory({ chapterId, chapterTitle, currentText, onClose, 
             </ul>
           </div>
 
-          <div className="flex min-h-0 flex-col p-4">
+          <div className="flex flex-col p-4 md:min-h-0">
             {selected ? (
               <>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -176,7 +169,7 @@ export function ChapterHistory({ chapterId, chapterTitle, currentText, onClose, 
                     </Button>
                   </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-lg border bg-ink-50/40 p-4 font-serif text-sm leading-relaxed">
+                <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg border bg-ink-50/40 p-4 font-serif text-sm leading-relaxed md:max-h-none md:min-h-0 md:flex-1">
                   {!changed && <p className="mb-2 font-sans text-xs text-ink-700">This version is identical to the current text.</p>}
                   {parts.map((p, i) =>
                     p.kind === "same" ? (
@@ -201,7 +194,6 @@ export function ChapterHistory({ chapterId, chapterTitle, currentText, onClose, 
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

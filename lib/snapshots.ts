@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
-export type SnapshotSource = "manual" | "autopilot" | "delete-chapters" | "restore";
+export type SnapshotSource = "manual" | "autopilot" | "delete-chapters" | "restore" | "structure";
 
 /** Most automatic snapshots kept per project. Manual ones (the author's milestones) are never pruned. */
 const MAX_AUTO = 20;

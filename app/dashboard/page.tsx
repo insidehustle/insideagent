@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Check, Circle, Plus, Trash2 } from "lucide-react";
 import { useProject } from "@/components/ProjectProvider";
 import { Button, Card, ErrorNote, PageHeader } from "@/components/ui/kit";
+import { Modal } from "@/components/ui/Modal";
+import { WelcomeCard } from "@/components/WelcomeCard";
 
 export default function DashboardHome() {
   const { current, loading, error, remove } = useProject();
@@ -36,6 +38,7 @@ export default function DashboardHome() {
     <div className="max-w-3xl space-y-6">
       <PageHeader title="Overview" subtitle="Each project is one book: its blueprint, research, chapters and campaigns." />
       <ErrorNote message={error} />
+      <WelcomeCard />
       {current && steps && (
         <Card>
           <h2 className="font-semibold">{current.title}</h2>
@@ -58,9 +61,8 @@ export default function DashboardHome() {
         </Card>
       )}
       {confirming && current && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="alertdialog" aria-modal="true" aria-label="Delete project">
-          <div className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Delete “{current.title}”?</h2>
+        <Modal role="alertdialog" title={`Delete “${current.title}”?`} onClose={() => !deleting && setConfirming(false)}>
+          <div className="space-y-4 p-5">
             <p className="text-sm text-ink-700">
               This permanently deletes the project and everything in it: its blueprint, research, {current._count.chapters} chapter
               {current._count.chapters === 1 ? "" : "s"}, uploaded documents and characters. This cannot be undone.
@@ -79,7 +81,7 @@ export default function DashboardHome() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
       {!current && !loading && (
         <Card>

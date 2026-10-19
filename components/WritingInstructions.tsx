@@ -56,6 +56,7 @@ export function WritingInstructions({ projectId, saved }: { projectId: string; s
       <textarea
         rows={6}
         className="w-full text-sm"
+        aria-label="Writing instructions"
         maxLength={8000}
         placeholder={"e.g. Write for busy managers. Use second person. Keep chapters under 2,000 words. Always end with a 3-step exercise. Never mention competitors by name."}
         value={text}

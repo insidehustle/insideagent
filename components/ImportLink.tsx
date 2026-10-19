@@ -33,7 +33,7 @@ export function ImportLink({ projectId, onImported, compact }: { projectId: stri
       {!compact && <h3 className="font-semibold">Add a video or web page</h3>}
       <p className="text-xs text-ink-700">Paste a YouTube link (its captions are used as the transcript) or an article URL. It becomes a reference document for Content Studio.</p>
       <div className="flex gap-2">
-        <input className="min-w-0 flex-1" placeholder="https://youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <input className="min-w-0 flex-1" aria-label="YouTube or article link" placeholder="https://youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} />
         <Button variant="secondary" onClick={add} loading={busy} disabled={!url.trim()}>
           <Link2 size={14} /> Add
         </Button>

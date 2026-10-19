@@ -18,8 +18,10 @@ export default function NewProjectPage() {
     setBusy(true);
     setError(null);
     try {
+      const first = projects.length === 0;
       await create(title, niche);
-      router.push("/dashboard");
+      // a first project goes straight to the walkthrough, which picks up at the next step
+      router.push(first ? "/dashboard/tutorial" : "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create project");
       setBusy(false);

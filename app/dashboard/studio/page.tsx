@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronsDownUp, ChevronsUpDown, ListTree, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, ListTree, Trash2 } from "lucide-react";
 import { api, post } from "@/lib/client";
 import { cn } from "@/lib/cn";
 import { BookAutopilot } from "@/components/BookAutopilot";
@@ -9,6 +9,8 @@ import { BookBrief } from "@/components/BookBrief";
 import { useProject } from "@/components/ProjectProvider";
 import { ChapterEditor, type ChapterRow } from "@/components/ChapterEditor";
 import { CharactersPanel } from "@/components/CharactersPanel";
+import { ContinuityPanel } from "@/components/ContinuityPanel";
+import { ProgressPanel } from "@/components/ProgressPanel";
 import { ReferenceDocuments } from "@/components/ReferenceDocuments";
 import { SnapshotsPanel } from "@/components/SnapshotsPanel";
 import { RequireProject } from "@/components/RequireProject";
@@ -99,6 +101,30 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
   }
 
   const active = chapters.find((c) => c.id === activeId);
+  const activeIndex = chapters.findIndex((c) => c.id === activeId);
+  // changes whenever any chapter's text or order changes, so Progress refreshes
+  const signature = chapters.map((c) => `${c.id}:${c.order}:${c.content.length}`).join("|");
+
+  async function move(id: string, direction: "up" | "down") {
+    setError(null);
+    try {
+      const res = await post<{ chapters: ChapterRow[] }>("/api/chapters/structure", { projectId, action: "move", chapterId: id, direction });
+      setChapters(res.chapters);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not move the chapter");
+    }
+  }
+
+  function applyStructure(cs: ChapterRow[], newActiveId: string) {
+    setChapters(cs);
+    setActiveId(newActiveId);
+    setSnapshotTick((n) => n + 1);
+  }
+
+  function selectByOrder(order: number) {
+    const c = chapters.find((x) => x.order === order);
+    if (c) setActiveId(c.id);
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
@@ -146,20 +172,42 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
 
         {chapters.length > 0 && (
           <CollapsibleCard id="chapter-list" title={`Chapters (${chapters.length})`} defaultOpen>
-            <nav className="-mx-2 space-y-1">
-              {chapters.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveId(c.id)}
-                  className={cn(
-                    "block w-full rounded-lg px-3 py-2 text-left text-sm",
-                    c.id === activeId ? "bg-accent-soft font-medium text-accent-dark" : "hover:bg-ink-100",
-                  )}
-                >
-                  <span className="text-ink-700/70">{c.order}.</span> {c.title}
-                  <span className="block text-xs font-normal text-ink-700/70">{c.status}</span>
-                </button>
-              ))}
+            <nav className="-mx-2" aria-label="Chapters">
+              <ul className="space-y-1">
+                {chapters.map((c, i) => (
+                  <li key={c.id} className="flex items-stretch gap-1">
+                    <button
+                      onClick={() => setActiveId(c.id)}
+                      aria-current={c.id === activeId ? "true" : undefined}
+                      className={cn(
+                        "min-h-11 min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm",
+                        c.id === activeId ? "bg-accent-soft font-medium text-accent-dark" : "hover:bg-ink-100",
+                      )}
+                    >
+                      <span className="text-ink-700">{c.order}.</span> {c.title}
+                      <span className="block text-xs font-normal text-ink-700">{c.status}</span>
+                    </button>
+                    <span className="flex shrink-0 flex-col justify-center">
+                      <button
+                        onClick={() => void move(c.id, "up")}
+                        disabled={i === 0}
+                        aria-label={`Move chapter ${c.order}, ${c.title}, up`}
+                        className="flex h-6 w-9 items-center justify-center rounded text-ink-700 hover:bg-ink-100 disabled:opacity-30"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        onClick={() => void move(c.id, "down")}
+                        disabled={i === chapters.length - 1}
+                        aria-label={`Move chapter ${c.order}, ${c.title}, down`}
+                        className="flex h-6 w-9 items-center justify-center rounded text-ink-700 hover:bg-ink-100 disabled:opacity-30"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </nav>
           </CollapsibleCard>
         )}
@@ -167,6 +215,7 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
         <WritingInstructions projectId={projectId} saved={instructions} />
         <ReferenceDocuments projectId={projectId} />
         <CharactersPanel projectId={projectId} />
+        <ContinuityPanel projectId={projectId} onSelectChapter={selectByOrder} />
         <SnapshotsPanel
           projectId={projectId}
           refreshKey={snapshotTick}
@@ -193,12 +242,15 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
       </div>
 
       <div className="min-w-0 space-y-4">
+        <ProgressPanel projectId={projectId} signature={signature} onSelectChapter={selectByOrder} />
         <BookBrief projectId={projectId} saved={bookBrief} />
         {active ? (
           <ChapterEditor
             key={active.id}
             chapter={active}
             onUpdated={(updated) => setChapters((cs) => cs.map((c) => (c.id === updated.id ? updated : c)))}
+            onStructure={applyStructure}
+            hasNext={activeIndex >= 0 && activeIndex < chapters.length - 1}
           />
         ) : (
           <Card>

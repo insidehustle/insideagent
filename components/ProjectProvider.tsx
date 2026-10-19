@@ -14,6 +14,7 @@ export interface ProjectSummary {
   autoResearch: boolean;
   autoResearchEveryDays: number;
   lastAutoResearchAt: string | null;
+  wordGoal: number;
   blueprint: { id: string } | null;
   _count: { chapters: number; outlierReports: number };
 }

@@ -22,6 +22,7 @@ const SOURCE_LABEL: Record<string, string> = {
   autopilot: "Before Autopilot",
   "delete-chapters": "Before deleting chapters",
   restore: "Before restore",
+  structure: "Before merging chapters",
 };
 
 const when = (iso: string) =>
@@ -101,7 +102,7 @@ export function SnapshotsPanel({ projectId, refreshKey, onRestored }: Props) {
         Saves the whole book (brief, instructions, blueprint, every chapter). Taken automatically before Autopilot and before deleting chapters.
       </p>
       <div className="flex gap-2">
-        <input className="min-w-0 flex-1" placeholder="Name this milestone" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <input className="min-w-0 flex-1" aria-label="Name for this milestone" placeholder="Name this milestone" value={label} onChange={(e) => setLabel(e.target.value)} />
         <Button variant="secondary" onClick={create} loading={busy === "create"}>
           <Camera size={14} /> Save
         </Button>

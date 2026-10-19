@@ -81,6 +81,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "In the Outline panel, set how many chapters you want (3 to 30).",
       "Press Generate outline.",
       "Read the book brief at the top and each chapter brief. Edit any brief to steer that chapter, then save it.",
+      "Open Progress at the top of Content Studio and set a word goal for the whole book (a standard book is about 50,000 words).",
     ],
     tip: "Changing your mind later? Delete all chapters and regenerate. A snapshot is saved first, so nothing is lost.",
     href: "/dashboard/studio",
@@ -97,8 +98,23 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Select a passage, describe the change, and press Rewrite selection to edit just that part with AI.",
       "Press Listen to hear the chapter read aloud, which is the fastest way to catch awkward sentences.",
       "Or press Write the book automatically to draft every chapter in order. Keep the tab open while it runs.",
+      "Not happy with the shape? Use the arrows beside a chapter in the list to move it, click in the text and press Split at cursor to cut a chapter in two, or press Merge with next to join two.",
     ],
     tip: "If the draft names someone who is not in your documents or Characters list, a yellow note flags it so you can add or remove them.",
+    href: "/dashboard/studio",
+    linkLabel: "Open Content Studio",
+  },
+  {
+    id: "check",
+    title: "Check the whole book hangs together",
+    why: "Problems that cross chapters, such as repeated wording, a dropped thread or a contradiction, are hard to see while you are writing one chapter at a time.",
+    actions: [
+      "Open Continuity check in the Content Studio sidebar and press Check the book.",
+      "Read each finding. Exact matches (repeated phrases, same openings, odd lengths, unknown names) are reliable. Findings marked \"AI reading\" are suggestions, so verify them against the chapter.",
+      "Press Open chapter on a finding to jump straight to it, fix it, and check again.",
+      "Watch Progress for your word count against the goal and your daily streak.",
+    ],
+    tip: "Run the check after the first full draft and again before you call the book finished.",
     href: "/dashboard/studio",
     linkLabel: "Open Content Studio",
   },
@@ -191,6 +207,9 @@ export const GUIDES: GuideSection[] = [
       { heading: "Draft, redraft, rewrite selection", body: "Draft writes the chapter. Redraft replaces it (the old text is kept in History). Select text and describe a change to rewrite only that part." },
       { heading: "Listen", body: "Reads the chapter aloud. Useful for catching clumsy phrasing; changes can be applied back to the chapter." },
       { heading: "Write the whole book", body: "Autopilot detects characters, builds the outline if there is none, then drafts every chapter in order. You can stop it and resume later. On free-tier AI limits, expect pauses between chapters." },
+      { heading: "Progress, word goal and streak", body: "Set a word goal for the book and watch the bar fill as you write. Chapter lengths are shown as small bars (click one to open it). The streak counts consecutive days on which you edited or saved a chapter; it stays alive until the end of the following day." },
+      { heading: "Moving, splitting and merging chapters", body: "Use the up and down arrows beside a chapter in the list to reorder it; the numbers update everywhere. To split, click in the text where the new chapter should begin, optionally name it, and press Split at cursor. Merge with next joins the chapter below into this one. A split keeps the original as a version, and a merge saves a project snapshot first because it removes a chapter." },
+      { heading: "Continuity check", body: "Scans the drafted chapters for repeated wording, chapters that open the same way, very short or very long chapters and names missing from Characters. It also asks the AI to read each chapter's plan, opening and closing for contradictions, dropped threads and unkept promises. The AI part sees only those excerpts, so treat its findings as leads and confirm them. If the AI is unavailable the exact checks still run." },
       { heading: "Autosave", body: "Text saves a few seconds after you stop typing. The header shows Unsaved changes or the time of the last save. You are warned if you close the tab with unsaved text." },
       { heading: "History (chapter versions)", body: "Versions are kept before redrafts, AI rewrites, read-aloud edits and restores, and periodically while you edit. Compare any version with the current text: red is only in the old version, green is only in the current text. Restore, pin or name versions." },
       { heading: "Project snapshots", body: "A snapshot saves the brief, instructions, blueprint and every chapter. Save milestones yourself; they are also taken before Autopilot and before deleting all chapters. Restoring puts the whole book back." },
@@ -219,6 +238,18 @@ export const GUIDES: GuideSection[] = [
 ];
 
 export const FAQ: { q: string; a: string }[] = [
+  {
+    q: "I split a chapter in the wrong place.",
+    a: "Open History on the first part: a version named Before split holds the whole original text. Restore it, then delete the extra chapter by merging, or restore the snapshot if you merged.",
+  },
+  {
+    q: "The continuity check says something that is not true.",
+    a: "Findings marked AI reading come from excerpts only (the plan, opening and closing of each chapter), so the middle of a chapter is not seen. Check the chapter and ignore the finding if it is wrong.",
+  },
+  {
+    q: "My streak reset even though I wrote.",
+    a: "Days are counted in your own time zone and only when a chapter is edited or saved. Autosave counts, but opening a chapter without changing it does not.",
+  },
   {
     q: "The AI does not sound like me. What do I change?",
     a: "Add more to the Ikigai optional fields, especially a real writing sample, stories and what to avoid. Then edit the blueprint's Voice Rules. Add standing rules under Writing instructions in Content Studio.",

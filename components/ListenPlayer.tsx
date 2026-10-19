@@ -6,6 +6,7 @@ import { post } from "@/lib/client";
 import { cn } from "@/lib/cn";
 import { useSpeech } from "@/lib/use-speech";
 import { Button, ErrorNote } from "./ui/kit";
+import { useDialog } from "./ui/Modal";
 
 interface Props {
   text: string;
@@ -87,6 +88,11 @@ function sentenceAround(paragraph: string, offset: number): string {
  * word being spoken, and lets you tap any word or paragraph to revise it by typing or by voice.
  */
 export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(dialogRef, () => {
+    stopSpeaking();
+    onClose();
+  });
   const [paras, setParas] = useState<string[]>(() => splitParagraphs(text));
   const parasRef = useRef(paras);
   parasRef.current = paras;
@@ -347,7 +353,7 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
   const selParagraph = sel ? paras[sel.p] : "";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink-50" role="dialog" aria-label="Listen and revise">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex flex-col bg-ink-50 outline-none" role="dialog" aria-modal="true" aria-label="Listen and revise" tabIndex={-1}>
       <header className="flex items-center gap-3 border-b border-ink-200 bg-white px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{title}</p>

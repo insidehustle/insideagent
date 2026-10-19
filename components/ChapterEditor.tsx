@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Headphones, History, Save, Sparkles, Wand2 } from "lucide-react";
+import { Headphones, History, Merge, Save, Scissors, Sparkles, Wand2 } from "lucide-react";
 import { patch, post } from "@/lib/client";
 import { SEVEN_STEPS } from "@/lib/frameworks/seven-step-narrative";
 import { Button, Card, ErrorNote } from "./ui/kit";
@@ -25,9 +25,13 @@ export interface ChapterRow {
 interface Props {
   chapter: ChapterRow;
   onUpdated: (chapter: ChapterRow) => void;
+  /** Called after a split or merge with the renumbered chapter list and the chapter to show */
+  onStructure?: (chapters: ChapterRow[], activeId: string) => void;
+  /** Whether a chapter follows this one, which is what a merge needs */
+  hasNext?: boolean;
 }
 
-export function ChapterEditor({ chapter, onUpdated }: Props) {
+export function ChapterEditor({ chapter, onUpdated, onStructure, hasNext }: Props) {
   const [content, setContent] = useState(chapter.content);
   const initialBrief = chapter.brief || (chapter.status === "outline" ? chapter.content : "");
   const [brief, setBrief] = useState(initialBrief);
@@ -37,9 +41,10 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
   const [listening, setListening] = useState(false);
   const [editInstruction, setEditInstruction] = useState("");
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
-  const [busy, setBusy] = useState<null | "save" | "draft" | "edit">(null);
+  const [busy, setBusy] = useState<null | "save" | "draft" | "edit" | "structure">(null);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [splitTitle, setSplitTitle] = useState("");
   const [autoState, setAutoState] = useState<"idle" | "saving" | "failed">("idle");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -210,6 +215,34 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
   }
 
   const hasSelection = !!selection && selection.start !== selection.end;
+  const caret = selection?.start ?? null;
+  const canSplit = caret !== null && caret > 0 && caret < content.length && content.slice(0, caret).trim() !== "" && content.slice(caret).trim() !== "";
+
+  async function structure(action: "split" | "merge") {
+    if (!onStructure) return;
+    if (
+      action === "merge" &&
+      !confirm("Merge this chapter with the next one? Their text and briefs are joined here and the next chapter is removed. A snapshot is saved first, so you can restore it.")
+    )
+      return;
+    setBusy("structure");
+    setError(null);
+    try {
+      if (dirty) await persist(content, "manual");
+      const res = await post<{ chapters: ChapterRow[]; activeId: string }>("/api/chapters/structure", {
+        projectId: chapter.projectId,
+        action,
+        chapterId: chapter.id,
+        ...(action === "split" ? { at: caret, title: splitTitle } : {}),
+      });
+      setSplitTitle("");
+      onStructure(res.chapters, res.activeId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not change the chapter");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <Card className="space-y-4">
@@ -282,9 +315,33 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
         </div>
       </div>
 
+      {onStructure && (
+        <CollapsibleCard id="chapter-structure" bare title="Split or merge this chapter">
+          <p className="text-xs text-ink-700">
+            To split, click in the text where the new chapter should begin, name it, and press Split. Use the arrows beside the chapter in the list to move it.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className="min-w-0 flex-1"
+              aria-label="Title for the new chapter"
+              placeholder="Title for the new chapter (optional)"
+              value={splitTitle}
+              onChange={(e) => setSplitTitle(e.target.value)}
+            />
+            <Button variant="secondary" onClick={() => structure("split")} loading={busy === "structure"} disabled={!canSplit}>
+              <Scissors size={14} /> Split at cursor
+            </Button>
+            <Button variant="secondary" onClick={() => structure("merge")} loading={busy === "structure"} disabled={!hasNext}>
+              <Merge size={14} /> Merge with next
+            </Button>
+          </div>
+          {!canSplit && <p className="text-xs text-ink-700">Click inside the chapter text to choose where to split.</p>}
+        </CollapsibleCard>
+      )}
+
       <textarea
         ref={area}
-        className="h-[32rem] w-full font-serif leading-relaxed"
+        className="h-[60vh] min-h-[18rem] w-full font-serif leading-relaxed md:h-[32rem]"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onSelect={(e) => setSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })}
@@ -294,6 +351,7 @@ export function ChapterEditor({ chapter, onUpdated }: Props) {
       <div className="flex flex-wrap gap-2">
         <input
           className="min-w-0 flex-1"
+          aria-label="How the selected text should change"
           placeholder={hasSelection ? "How should the selected text change?" : "Select text above to edit it with AI"}
           value={editInstruction}
           disabled={!hasSelection}

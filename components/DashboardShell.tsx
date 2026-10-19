@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { BookOpenText, BookText, Compass, GraduationCap, Image as ImageIcon, LayoutDashboard, LogOut, Megaphone, Menu, PenLine, Plus, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ProjectProvider, useProject } from "./ProjectProvider";
 import { ServiceStatusBanner } from "./ServiceStatusBanner";
+import { useDialog } from "./ui/Modal";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -84,6 +85,27 @@ function SidebarContent() {
   );
 }
 
+/** The slide-in menu panel: a labelled dialog that traps focus, closes on Escape and returns focus to the menu button. */
+function Drawer({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  useDialog(ref, onClose);
+  return (
+    <div className="fixed inset-0 z-50">
+      <button className="absolute inset-0 bg-black/40" aria-label="Close menu" tabIndex={-1} onClick={onClose} />
+      <aside
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        tabIndex={-1}
+        className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col gap-4 overflow-y-auto bg-white p-4 shadow-xl outline-none"
+      >
+        {children}
+      </aside>
+    </div>
+  );
+}
+
 /** Phone and small tablet: a top bar with a menu button that opens the navigation as a slide-in drawer. */
 function MobileNav() {
   const pathname = usePathname();
@@ -93,19 +115,6 @@ function MobileNav() {
 
   // close after choosing a page
   useEffect(() => setOpen(false), [pathname]);
-
-  // lock page scroll behind the drawer, and let Escape close it
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   return (
     <div className="md:hidden">
@@ -134,9 +143,7 @@ function MobileNav() {
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu">
-          <button className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col gap-4 overflow-y-auto bg-white p-4 shadow-xl">
+        <Drawer onClose={() => setOpen(false)}>
             <div className="flex items-center justify-between">
               <Link href="/" className="font-serif text-lg font-semibold">
                 Book Automation
@@ -150,8 +157,7 @@ function MobileNav() {
               </button>
             </div>
             <SidebarContent />
-          </aside>
-        </div>
+        </Drawer>
       )}
     </div>
   );
@@ -161,11 +167,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <ProjectProvider>
       <div className="flex min-h-screen flex-col md:flex-row">
+        <a
+          href="#main"
+          className="sr-only z-[60] rounded-lg bg-white px-4 py-2 text-sm font-medium shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+        >
+          Skip to content
+        </a>
         <MobileNav />
         <aside className="hidden w-64 shrink-0 flex-col gap-6 border-r border-ink-200 bg-white p-4 md:flex">
           <SidebarContent />
         </aside>
-        <main className="min-w-0 flex-1 p-4 sm:p-6 md:p-10">{children}</main>
+        <main id="main" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none sm:p-6 md:p-10">
+          {children}
+        </main>
         <ServiceStatusBanner />
       </div>
     </ProjectProvider>

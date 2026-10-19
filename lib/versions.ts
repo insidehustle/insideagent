@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 
-export type VersionSource = "manual" | "autosave" | "redraft" | "ai-edit" | "listen-edit" | "restore";
+export type VersionSource = "manual" | "autosave" | "redraft" | "ai-edit" | "listen-edit" | "restore" | "split" | "merge";
 
 /** Most versions kept per chapter. Pinned or labelled ones are never pruned. */
 const MAX_VERSIONS = 60;
