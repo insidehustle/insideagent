@@ -21,6 +21,8 @@ interface Props {
   autoPlay?: boolean;
   /** When set, reading carries on into the next chapter by calling this at the end of the text (unless the listener turns it off). */
   onChapterEnd?: () => void;
+  /** Spoken before the first paragraph when reading starts from the top, e.g. the chapter number and title. Never saved into the text. */
+  intro?: string;
 }
 
 interface Segment {
@@ -89,7 +91,9 @@ function sentenceAround(paragraph: string, offset: number): string {
  * Reads the chapter aloud (browser text-to-speech, works on phones and computers), highlights the
  * word being spoken, and lets you tap any word or paragraph to revise it by typing or by voice.
  */
-export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false, onChapterEnd }: Props) {
+export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false, onChapterEnd, intro }: Props) {
+  const introRef = useRef(intro);
+  introRef.current = intro;
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialog(dialogRef, () => {
     stopSpeaking();
@@ -193,7 +197,7 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
   }, [supported]);
 
   const speakFrom = useCallback(
-    (startP: number, startS: number) => {
+    (startP: number, startS: number, withIntro = false) => {
       if (!supported) return;
       const synth = window.speechSynthesis;
       const run = ++runRef.current;
@@ -232,13 +236,29 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
         };
         synth.speak(u);
       };
-      go(startP, startS);
+      if (withIntro && introRef.current) {
+        // announce the chapter number and title first, then the text
+        const u = new SpeechSynthesisUtterance(introRef.current);
+        u.rate = rateRef.current;
+        const voice = voicesRef.current.find((v) => v.voiceURI === voiceRef.current);
+        if (voice) {
+          u.voice = voice;
+          u.lang = voice.lang;
+        }
+        u.onend = () => go(startP, startS);
+        u.onerror = () => {
+          if (run === runRef.current) setPlaying(false);
+        };
+        synth.speak(u);
+      } else {
+        go(startP, startS);
+      }
     },
     [supported],
   );
 
   useEffect(() => {
-    if (autoPlay && supported) speakFrom(Math.max(0, startParagraph), 0);
+    if (autoPlay && supported) speakFrom(Math.max(0, startParagraph), 0, startParagraph <= 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -539,7 +559,7 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
               <ChevronLeft />
             </button>
             <button
-              onClick={() => (playing ? stopSpeaking() : speakFrom(pos.p, pos.s))}
+              onClick={() => (playing ? stopSpeaking() : speakFrom(pos.p, pos.s, pos.p === 0 && pos.s === 0))}
               disabled={!supported}
               aria-label={playing ? "Pause" : "Play"}
               className="rounded-full bg-accent p-4 text-white hover:bg-accent-dark disabled:opacity-50"
