@@ -6,6 +6,7 @@ import { patch, post } from "@/lib/client";
 import { SEVEN_STEPS } from "@/lib/frameworks/seven-step-narrative";
 import { Button, Card, ErrorNote } from "./ui/kit";
 import { ChapterHistory } from "./ChapterHistory";
+import { InlineReader } from "./InlineReader";
 import { ListenPlayer } from "./ListenPlayer";
 import { CollapsibleCard } from "./ui/Collapsible";
 
@@ -51,6 +52,8 @@ export function ChapterEditor({ chapter, onUpdated, onStructure, hasNext }: Prop
   /** The text most recently sent to the server, so its echo does not overwrite what was typed since. */
   const sentRef = useRef<string | null>(null);
   const autosaving = useRef(false);
+  /** Select events before this time come from the reader highlighting a sentence, not from the user */
+  const readerSelectUntil = useRef(0);
 
   // show new text when it arrives from elsewhere (a draft, a restore); ignore the echo of our own saves
   useEffect(() => {
@@ -344,9 +347,23 @@ export function ChapterEditor({ chapter, onUpdated, onStructure, hasNext }: Prop
         className="h-[60vh] min-h-[18rem] w-full font-serif leading-relaxed md:h-[32rem]"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        onSelect={(e) => setSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })}
+        onSelect={(e) => {
+          if (Date.now() < readerSelectUntil.current) return;
+          setSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd });
+        }}
         aria-label="Chapter text"
       />
+
+      {chapter.status !== "outline" && (
+        <InlineReader
+          text={content}
+          area={area}
+          selection={selection}
+          onProgrammaticSelect={() => {
+            readerSelectUntil.current = Date.now() + 300;
+          }}
+        />
+      )}
 
       <div className="flex flex-wrap gap-2">
         <input

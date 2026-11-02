@@ -1,59 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { askLLM, askLLMJson } from "@/lib/llm";
 import { getBlueprintMarkdown } from "@/lib/markdown-store";
-import { chapterPrompt, guidanceBlocks, inlineEditPrompt, outlinePrompt } from "@/lib/frameworks/seven-step-narrative";
-import { continueOutlinePrompt } from "@/lib/frameworks/outline-continue";
-import type { BookKind } from "@/lib/frameworks/fiction";
+import { inlineEditPrompt } from "@/lib/frameworks/seven-step-narrative";
 import { cleanProse } from "@/lib/anti-ai";
-import { getCharactersBlock, findNewNames } from "@/lib/characters";
-import { getOutlineReferences, getReferences, getWritingInstructions } from "@/lib/references";
-import { saveChapterVersion } from "@/lib/versions";
+import { getCharactersBlock } from "@/lib/characters";
+import { getReferences, getWritingInstructions } from "@/lib/references";
+import { draftChapter, planOutline } from "@/lib/book-writer";
 import { requireChapter, requireProject } from "@/lib/auth";
 import { apiError } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-interface OutlineItem {
-  title: string;
-  frameworkStep: number | string;
-  summary: string;
-  keyPoints?: string[];
-  characters?: string[];
-  sources?: string[];
-}
-
-/** The chapter brief shown in the editor and fed back into drafting. */
-function formatBrief(it: OutlineItem, realDocs: Set<string>): string {
-  const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
-  const points = list(it.keyPoints);
-  const people = list(it.characters);
-  const sources = list(it.sources).filter((s) => realDocs.has(s));
-  return [
-    `**Summary:** ${String(it.summary ?? "").trim()}`,
-    points.length ? `**Key points:**\n${points.map((p) => `- ${p}`).join("\n")}` : "",
-    people.length ? `**Characters:** ${people.join(", ")}` : "",
-    `**Drawn from:** ${sources.length ? sources.join(", ") : "no uploaded document covers this chapter"}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 type Body =
   | { action: "outline"; projectId: string; chapterCount?: number; templateDocId?: string }
   | { action: "chapter"; chapterId: string; instruction?: string; wordTarget?: number }
   | { action: "edit"; projectId: string; selection: string; instruction: string; context?: string }
   | { action: "alternatives"; projectId: string; word: string; sentence: string };
-
-/** The closing lines of a chapter, used so the next one continues from where it stopped. */
-function endingOf(text: string, chars = 700): string {
-  const t = text.trim();
-  if (t.length <= chars) return t;
-  const tail = t.slice(-chars);
-  const firstBreak = tail.search(/\n\n|(?<=[.!?])\s/);
-  return (firstBreak > 0 ? tail.slice(firstBreak) : tail).trim();
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,146 +25,13 @@ export async function POST(req: NextRequest) {
     else if (body.projectId) await requireProject(body.projectId);
 
     if (body.action === "outline") {
-      const project = await prisma.project.findUnique({
-        where: { id: body.projectId },
-        include: { outlierReports: { orderBy: { createdAt: "desc" }, take: 1 } },
-      });
-      if (!project) return apiError("Project not found", 404);
-      const count = Math.min(Math.max(body.chapterCount ?? 10, 3), 30);
-      const blueprint = await getBlueprintMarkdown(project.id);
-      // sample evenly across every uploaded document so the plan reflects all of the material
-      // "Create my version": plan from one chosen source only, borrowing its structure and ideas, never its wording
-      let templateNote = "";
-      if (body.templateDocId) {
-        const owns = await prisma.sourceDocument.count({ where: { id: body.templateDocId, projectId: project.id } });
-        if (!owns) return apiError("Source document not found", 404);
-        templateNote =
-          "CREATE AN ORIGINAL VERSION of the single source document shown in the reference material. Mirror its overall structure, sequence of ideas and the value it delivers to the reader, then improve on it: fill the market gaps, use the author's own voice, stories and examples, and reorder or add chapters where that serves the reader better. Do not copy its sentences, titles or examples; every chapter must be newly conceived.";
-      }
-      const refs = await getOutlineReferences(
-        project.id,
-        `${project.title} ${project.niche} ${project.writingInstructions}`,
-        undefined,
-        body.templateDocId,
-      );
-      const characters = await getCharactersBlock(project.id);
-      const first = await askLLMJson<{ bookBrief?: string; chapters: OutlineItem[] }>(
-        outlinePrompt({
-          title: project.title,
-          niche: project.niche,
-          blueprint,
-          chapterCount: count,
-          marketGaps: project.outlierReports[0]?.marketGaps ?? [],
-          instructions: [project.writingInstructions, templateNote].filter(Boolean).join("\n\n"),
-          references: refs.block,
-          characters,
-          kind: project.kind as BookKind,
-        }),
-      );
-      const bookBrief = first.bookBrief;
-      let items = Array.isArray(first.chapters) ? first.chapters : [];
-      if (items.length === 0) return apiError("Model returned an empty outline", 502);
-
-      // The model does not always return the number asked for. Ask for the missing chapters, then trim any extras.
-      for (let round = 0; round < 2 && items.length < count; round++) {
-        const more = await askLLMJson<{ chapters: OutlineItem[] }>(
-          continueOutlinePrompt({
-            title: project.title,
-            niche: project.niche,
-            kind: project.kind as BookKind,
-            existing: items.map((c) => ({ title: String(c.title), summary: String(c.summary ?? "") })),
-            total: count,
-            guidance: guidanceBlocks({ instructions: project.writingInstructions, characters }),
-          }),
-          { maxTokens: 8000 },
-        );
-        if (Array.isArray(more.chapters)) items = items.concat(more.chapters);
-      }
-      items = items.slice(0, count);
-      if (items.length < count) {
-        return apiError(`The model planned only ${items.length} of the ${count} chapters you asked for. Press the button again.`, 502);
-      }
-
-      // Replace the outline, keeping nothing that was never drafted. Drafted chapters block this.
-      const drafted = await prisma.chapter.count({ where: { projectId: project.id, status: { not: "outline" } } });
-      if (drafted > 0) return apiError("Chapters have already been drafted. Delete them before regenerating the outline.", 409);
-
-      // only document names that really exist may be cited
-      const realDocs = new Set(refs.sources);
-      await prisma.$transaction([
-        prisma.chapter.deleteMany({ where: { projectId: project.id } }),
-        prisma.chapter.createMany({
-          data: items.map((it, i) => ({
-            projectId: project.id,
-            order: i + 1,
-            title: String(it.title),
-            frameworkStep: String(it.frameworkStep ?? ""),
-            brief: formatBrief(it, realDocs),
-            content: "",
-            status: "outline",
-          })),
-        }),
-        prisma.project.update({
-          where: { id: project.id },
-          data: { status: "outlined", bookBrief: String(bookBrief ?? "").trim() },
-        }),
-      ]);
-      const chapters = await prisma.chapter.findMany({ where: { projectId: project.id }, orderBy: { order: "asc" } });
+      const chapters = await planOutline(body.projectId, { chapterCount: body.chapterCount, templateDocId: body.templateDocId });
       return NextResponse.json({ chapters });
     }
 
     if (body.action === "chapter") {
-      const chapter = await prisma.chapter.findUnique({
-        where: { id: body.chapterId },
-        include: { project: true },
-      });
-      if (!chapter) return apiError("Chapter not found", 404);
-      const prior = await prisma.chapter.findMany({
-        where: { projectId: chapter.projectId, order: { lt: chapter.order } },
-        orderBy: { order: "asc" },
-        select: { title: true, content: true, status: true },
-      });
-      const lastDrafted = [...prior].reverse().find((p) => p.status !== "outline");
-      const blueprint = await getBlueprintMarkdown(chapter.projectId);
-      // a newly typed instruction replaces the saved one; otherwise reuse what was saved
-      const instruction = (body.instruction ?? chapter.instructions).trim();
-      // the brief guides every draft and redraft; chapters outlined before briefs existed kept theirs in content
-      const summary = chapter.brief || (chapter.status === "outline" ? chapter.content : undefined);
-      const refs = await getReferences(
-        chapter.projectId,
-        [chapter.title, summary, instruction, chapter.dictationNotes, chapter.project.writingInstructions].filter(Boolean).join(" "),
-      );
-      const characters = await getCharactersBlock(chapter.projectId);
-      const draft = await askLLM(
-        chapterPrompt({
-          bookTitle: chapter.project.title,
-          niche: chapter.project.niche,
-          blueprint,
-          chapterTitle: chapter.title,
-          chapterOrder: chapter.order,
-          summary,
-          priorTitles: prior.map((p) => p.title),
-          previousEnding: lastDrafted ? endingOf(lastDrafted.content) : undefined,
-          dictationNotes: chapter.dictationNotes,
-          instruction: instruction || undefined,
-          instructions: chapter.project.writingInstructions,
-          references: refs.block,
-          characters,
-          bookBrief: chapter.project.bookBrief,
-          kind: chapter.project.kind as BookKind,
-          wordTarget: Math.min(Math.max(body.wordTarget ?? 2500, 500), 8000),
-        }),
-        { maxTokens: 32000 },
-      );
-      const content = cleanProse(draft);
-      // keep the text being replaced; a failure here must stop the redraft rather than lose writing
-      await saveChapterVersion(chapter.id, "redraft", { force: true });
-      const updated = await prisma.chapter.update({
-        where: { id: chapter.id },
-        data: { content, status: "drafted", instructions: instruction },
-      });
-      const newNames = await findNewNames(chapter.projectId, content);
-      return NextResponse.json({ chapter: updated, sources: refs.sources, newNames });
+      const { chapter, sources, newNames } = await draftChapter(body.chapterId, { instruction: body.instruction, wordTarget: body.wordTarget });
+      return NextResponse.json({ chapter, sources, newNames });
     }
 
     if (body.action === "edit") {

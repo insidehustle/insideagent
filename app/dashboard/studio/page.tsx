@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, ListTree, Trash2 } from "lucide-react";
 import { api, post } from "@/lib/client";
 import { cn } from "@/lib/cn";
+import { AuthorInterview } from "@/components/AuthorInterview";
 import { BookAutopilot } from "@/components/BookAutopilot";
 import { BookBrief } from "@/components/BookBrief";
+import { ImportManuscript } from "@/components/ImportManuscript";
 import { useProject } from "@/components/ProjectProvider";
 import { ChapterEditor, type ChapterRow } from "@/components/ChapterEditor";
 import { CharactersPanel } from "@/components/CharactersPanel";
@@ -139,6 +141,17 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
           </Button>
         </div>
 
+        <ImportManuscript
+          projectId={projectId}
+          chapterCount={chapters.length}
+          onImported={(cs) => {
+            setChapters(cs);
+            setActiveId((id) => (id && cs.some((c) => c.id === id) ? id : cs[0]?.id ?? null));
+            setSnapshotTick((n) => n + 1);
+            void refresh();
+          }}
+        />
+
         <CollapsibleCard id="outline" title="Outline" defaultOpen>
           <label className="block">
             <Label>Chapters</Label>
@@ -214,8 +227,9 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
 
         <WritingInstructions projectId={projectId} saved={instructions} />
         <ReferenceDocuments projectId={projectId} />
+        <AuthorInterview projectId={projectId} />
         <CharactersPanel projectId={projectId} />
-        <ContinuityPanel projectId={projectId} onSelectChapter={selectByOrder} />
+        <ContinuityPanel projectId={projectId} onSelectChapter={selectByOrder} onChaptersChanged={() => void load()} />
         <SnapshotsPanel
           projectId={projectId}
           refreshKey={snapshotTick}
@@ -227,16 +241,12 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
         />
         <BookAutopilot
           projectId={projectId}
-          onSnapshot={() => setSnapshotTick((n) => n + 1)}
           count={count}
-          onOutline={(cs) => {
-            setChapters(cs);
-            setActiveId(cs[0]?.id ?? null);
+          onChanged={() => {
+            // the server job wrote something: reload the chapters, the project summary and the snapshot list
+            void load();
             void refresh();
-          }}
-          onChapter={(updated) => {
-            setChapters((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
-            setActiveId(updated.id);
+            setSnapshotTick((n) => n + 1);
           }}
         />
       </div>
@@ -255,7 +265,7 @@ function Studio({ projectId, instructions, bookBrief }: { projectId: string; ins
         ) : (
           <Card>
             <p className="text-sm text-ink-700">
-              Generate an outline to begin. It also writes a book brief and a brief for every chapter, drawing on your uploaded documents, characters and instructions.
+              Import your manuscript to edit it as it is, or generate an outline to have one written. The outline also writes a book brief and a brief for every chapter, drawing on your uploaded documents, characters and instructions.
             </p>
           </Card>
         )}

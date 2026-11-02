@@ -33,11 +33,27 @@ Required: `DATABASE_URL`, `GROQ_API_KEY`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GO
 
 ## Updating an existing install
 
-Pull the latest code, then run `npm install` and `npm run db:push`. The schema has grown (chapter versions, project snapshots and a word goal) and the new features need those tables and columns. `db:push` only adds them. Restart the dev server afterwards so the regenerated Prisma client is picked up; on Windows, stop the server before `npm install` or `prisma generate` or the engine file will be locked.
+Pull the latest code, then run `npm install` and `npm run db:push`. The schema has grown (chapter versions, project snapshots, a word goal and background jobs) and the new features need those tables and columns. `db:push` only adds them. Restart the dev server afterwards so the regenerated Prisma client is picked up; on Windows, stop the server before `npm install` or `prisma generate` or the engine file will be locked.
+
+## Writing the whole book in the background
+
+"Write the whole book" is a server-side job (`BookJob`, `lib/jobs.ts`), not a loop in the browser. Its state is in the database and it works in slices of about three minutes, so it fits the host's request limit and survives closing the tab. A slice that is cut off leaves the job for the next one to pick up; a lock on the job stops two slices working at once. The Studio panel shows progress, the reason for any pause, and Resume and Stop buttons.
+
+Three things can run the next slice, and the job does not depend on any single one:
+
+1. **The open browser tab** nudges the job along whenever nothing else is working on it. This needs no setup.
+2. **Chaining**: at the end of a slice the server starts the next one in a new request. Set `CRON_SECRET` and `NEXTAUTH_URL` (the site's public URL) to enable it. With these set the browser can be closed.
+3. **A scheduled ping** of `/api/cron/jobs` with `Authorization: Bearer $CRON_SECRET` restarts jobs that are waiting out a long rate limit or whose slice was killed. Vercel Cron can do this every minute on a plan that allows it (add `{ "path": "/api/cron/jobs", "schedule": "* * * * *" }` to `vercel.json`; the Hobby plan only allows daily crons and will reject a faster schedule). Otherwise ping it every few minutes from GitHub Actions, cron-job.org or similar.
+
+Without the secret and URL the job still works, but only while a tab is open. It resumes when you come back.
+
+What it does when things go wrong: a short rate limit (under 45 seconds) is waited out inside the slice; a longer one parks the job as *waiting* until the provider says it is clear; a used-up allowance, rejected key, oversized request or database problem *pauses* it with the reason until you press Resume; temporary provider trouble is retried with growing delays and then pauses. A chapter that fails three tries (for example because it is too long to finish within the host's time limit) pauses the job and suggests a lower word count. Chapters already written are never discarded, and a snapshot is taken first if there are drafted chapters.
+
+Limits: one job per book, two running per author. The job writes only chapters still at the outline stage unless "Redraft" is ticked; chapters you write by hand while it runs are left alone.
 
 ## When something is rate limited or out of credit
 
-The app explains which service stopped the work and what to do (`lib/errors.ts`): Groq (writing), Tavily (search), Gemini or Pollinations (images), the database or the network. A banner stays on screen with a countdown for rate limits, and long jobs such as Write the whole book pause and retry on their own for per-minute limits but stop with the reason for a used-up allowance, a bad key or an outage.
+The app explains which service stopped the work and what to do (`lib/errors.ts`): Groq (writing), Tavily (search), Gemini or Pollinations (images), the database or the network. A banner stays on screen with a countdown for rate limits. The background job uses the same explanations and shows them in its panel.
 
 ## Accessibility and mobile
 

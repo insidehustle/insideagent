@@ -41,7 +41,7 @@ export const splitParagraphs = (t: string) =>
     .filter(Boolean);
 
 /** Same length as the input (markdown marks become spaces) so offsets map straight back to the displayed text. */
-const spokenText = (p: string) =>
+export const spokenText = (p: string) =>
   p
     .replace(/^\s*#{1,6}\s/gm, (m) => " ".repeat(m.length))
     .replace(/^\s*[-*]\s/gm, (m) => " ".repeat(m.length))

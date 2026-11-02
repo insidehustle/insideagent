@@ -63,6 +63,13 @@ export async function requireChapter(chapterId: string) {
   return chapter;
 }
 
+export async function requireJob(jobId: string) {
+  const user = await requireUser();
+  const job = await prisma.bookJob.findFirst({ where: { id: jobId, project: { userId: user.id } } });
+  if (!job) throw new HttpError(404, "Job not found");
+  return job;
+}
+
 export async function requireCharacter(id: string) {
   const user = await requireUser();
   const character = await prisma.character.findFirst({ where: { id, project: { userId: user.id } } });

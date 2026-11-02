@@ -97,7 +97,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Edit in the text box. Your work autosaves a few seconds after you stop typing.",
       "Select a passage, describe the change, and press Rewrite selection to edit just that part with AI.",
       "Press Listen to hear the chapter read aloud, which is the fastest way to catch awkward sentences.",
-      "Or press Write the book automatically to draft every chapter in order. Keep the tab open while it runs.",
+      "Or press Write the book automatically to draft every chapter in order. It runs as a background job on the server, with progress, a Stop button and, if something blocks it, the reason and a Resume button.",
       "Not happy with the shape? Use the arrows beside a chapter in the list to move it, click in the text and press Split at cursor to cut a chapter in two, or press Merge with next to join two.",
     ],
     tip: "If the draft names someone who is not in your documents or Characters list, a yellow note flags it so you can add or remove them.",
@@ -206,7 +206,7 @@ export const GUIDES: GuideSection[] = [
       { heading: "Characters", body: "Detected from your documents and drafts, or added by hand, then included in every writing prompt to keep names and roles consistent." },
       { heading: "Draft, redraft, rewrite selection", body: "Draft writes the chapter. Redraft replaces it (the old text is kept in History). Select text and describe a change to rewrite only that part." },
       { heading: "Listen", body: "Reads the chapter aloud. Useful for catching clumsy phrasing; changes can be applied back to the chapter." },
-      { heading: "Write the whole book", body: "Autopilot detects characters, builds the outline if there is none, then drafts every chapter in order. You can stop it and resume later. On free-tier AI limits, expect pauses between chapters." },
+      { heading: "Write the whole book", body: "Starts a background job that detects characters, builds the outline if there is none, saves a snapshot, then drafts every chapter in order. The work is kept on the server, so closing the tab does not lose it. If the site is set up to continue by itself (see the README) it keeps going with the tab closed; otherwise progress happens while the tab is open and picks up again when you return. Short rate limits are waited out automatically. If the AI allowance is used up, a key is rejected or a chapter keeps failing, the job pauses and shows why; press Resume once it is fixed. Stop ends it and keeps every chapter already written. One book runs one job at a time, and each author can have two running." },
       { heading: "Progress, word goal and streak", body: "Set a word goal for the book and watch the bar fill as you write. Chapter lengths are shown as small bars (click one to open it). The streak counts consecutive days on which you edited or saved a chapter; it stays alive until the end of the following day." },
       { heading: "Moving, splitting and merging chapters", body: "Use the up and down arrows beside a chapter in the list to reorder it; the numbers update everywhere. To split, click in the text where the new chapter should begin, optionally name it, and press Split at cursor. Merge with next joins the chapter below into this one. A split keeps the original as a version, and a merge saves a project snapshot first because it removes a chapter." },
       { heading: "Continuity check", body: "Scans the drafted chapters for repeated wording, chapters that open the same way, very short or very long chapters and names missing from Characters. It also asks the AI to read each chapter's plan, opening and closing for contradictions, dropped threads and unkept promises. The AI part sees only those excerpts, so treat its findings as leads and confirm them. If the AI is unavailable the exact checks still run." },
@@ -239,6 +239,10 @@ export const GUIDES: GuideSection[] = [
 
 export const FAQ: { q: string; a: string }[] = [
   {
+    q: "Can I close the tab while the book is being written?",
+    a: "Yes if the panel says it runs on the server. If it says to keep the tab open, the site is not yet set up to continue on its own, so progress happens only while the tab is open. Your place is saved either way, and the job carries on when you come back.",
+  },
+  {
     q: "I split a chapter in the wrong place.",
     a: "Open History on the first part: a version named Before split holds the whole original text. Restore it, then delete the extra chapter by merging, or restore the snapshot if you merged.",
   },
@@ -263,8 +267,8 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Open Project snapshots in the Content Studio sidebar and restore the one labelled Before deleting chapters.",
   },
   {
-    q: "Autopilot stopped part way through.",
-    a: "Press the button again. It skips chapters that are already written and carries on. Rate limits on the AI provider cause pauses; the tab must stay open.",
+    q: "The automatic writing stopped part way through.",
+    a: "Open the Write the whole book panel. It shows whether the job is waiting (a rate limit that clears by itself, with a countdown) or paused (something needs you: an allowance used up, a key problem, or a chapter that keeps failing), and why. Press Resume or Try now once it is fixed; chapters already written are kept.",
   },
   {
     q: "A YouTube video would not import.",

@@ -43,6 +43,7 @@ model Project {
   documents           SourceDocument[]
   characters          Character[]
   snapshots           ProjectSnapshot[]
+  jobs                BookJob[]
 
   @@index([userId])
 }
@@ -181,4 +182,41 @@ model ProjectSnapshot {
   createdAt DateTime @default(now())
 
   @@index([projectId, createdAt])
+}
+
+/// A long-running task done on the server so it survives closing the browser: writing the whole book.
+/// Work happens in short slices; state lives here so any slice (from the open tab, the end of the previous slice, or a scheduled ping) can continue it.
+model BookJob {
+  id             String    @id @default(cuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId         String
+  kind           String    @default("write-book")
+  /// queued | running | waiting | paused | completed | failed | cancelled
+  status         String    @default("queued")
+  /// { words, redraft, count }
+  params         Json
+  /// start | characters | outline | snapshot | chapters | done
+  phase          String    @default("start")
+  /// Chapters this job will write, in order, and the ones finished so far
+  chapterIds     String[]
+  doneIds        String[]
+  message        String    @default("")
+  /// ServiceIssue (see lib/errors.ts) when paused or waiting because of a provider limit
+  issue          Json?
+  error          String?
+  /// Failed tries at the current step; reset when the step succeeds
+  attempts       Int       @default(0)
+  /// Times in a row the provider rate limited the job
+  waitHits       Int       @default(0)
+  nextRunAt      DateTime  @default(now())
+  lockedUntil    DateTime?
+  heartbeatAt    DateTime?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status, nextRunAt])
 }
