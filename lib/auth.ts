@@ -1,8 +1,38 @@
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { createHash, timingSafeEqual } from "crypto";
 import { prisma } from "./prisma";
 import { HttpError, requireEnv } from "./utils";
+
+const digest = (s: string) => createHash("sha256").update(s).digest();
+
+/**
+ * TEMPORARY, for testing: one email and password sign-in, enabled only while TEST_LOGIN_EMAIL and TEST_LOGIN_PASSWORD are
+ * both set. Delete those two variables to turn it off; nothing is stored in the database.
+ */
+const testLogin =
+  process.env.TEST_LOGIN_EMAIL && process.env.TEST_LOGIN_PASSWORD
+    ? [
+        CredentialsProvider({
+          id: "test-login",
+          name: "Email and password",
+          credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
+          async authorize(credentials) {
+            const email = String(credentials?.email ?? "").trim().toLowerCase();
+            const emailOk = timingSafeEqual(digest(email), digest(process.env.TEST_LOGIN_EMAIL!.trim().toLowerCase()));
+            const passwordOk = timingSafeEqual(digest(String(credentials?.password ?? "")), digest(process.env.TEST_LOGIN_PASSWORD!));
+            if (!emailOk || !passwordOk) {
+              await new Promise((r) => setTimeout(r, 800)); // slows down guessing
+              return null;
+            }
+            const user = await prisma.user.upsert({ where: { email }, update: {}, create: { email, name: "Test user" } });
+            return { id: user.id, email: user.email, name: user.name };
+          },
+        }),
+      ]
+    : [];
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -12,12 +42,15 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
+    ...testLogin,
   ],
   callbacks: {
-    async signIn({ profile }) {
+    async signIn({ profile, account }) {
+      if (account?.provider === "test-login") return true;
       return Boolean(profile?.email && (profile as { email_verified?: boolean }).email_verified !== false);
     },
-    async jwt({ token, profile }) {
+    async jwt({ token, profile, user, account }) {
+      if (account?.provider === "test-login" && user?.id) token.uid = user.id;
       // on sign-in, find or create the user row; every later request reads the id from the token
       if (profile?.email) {
         const user = await prisma.user.upsert({
