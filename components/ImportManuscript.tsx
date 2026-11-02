@@ -72,7 +72,7 @@ export function ImportManuscript({ projectId, chapterCount, onImported }: { proj
           Import pasted text
         </Button>
       </details>
-      <p className="text-xs text-ink-700">Chapters are found from headings such as "Chapter 1", "Prologue" or "# Title".</p>
+      <p className="text-xs text-ink-700">Chapters are found from headings such as &ldquo;Chapter 1&rdquo;, &ldquo;Prologue&rdquo; or &ldquo;# Title&rdquo;.</p>
       {note && <p role="status" className="rounded-lg bg-accent-soft p-2 text-xs text-accent-dark">{note}</p>}
       <ErrorNote message={error} />
     </CollapsibleCard>

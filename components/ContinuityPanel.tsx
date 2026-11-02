@@ -159,7 +159,7 @@ export function ContinuityPanel({
                 {it.suggestion && <p className="mt-1 text-xs opacity-90">{it.suggestion}</p>}
                 {fixed.has(i) && (
                   <p className="mt-2 flex items-center gap-1 text-xs font-medium">
-                    <Check size={14} /> Fixed. The earlier text is saved in each chapter's History.
+                    <Check size={14} /> Fixed. The earlier text is saved in each chapter&apos;s History.
                   </p>
                 )}
                 {it.chapters.length > 0 && fixing !== i && (
