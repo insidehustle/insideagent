@@ -29,6 +29,7 @@ const SOURCE_LABEL: Record<string, string> = {
   restore: "Before restore",
   split: "Before split",
   merge: "Before merge",
+  "global-edit": "Before find and replace",
 };
 
 const when = (iso: string) =>

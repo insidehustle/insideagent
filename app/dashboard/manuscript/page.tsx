@@ -5,6 +5,7 @@ import { Copy, Check, Headphones, Play } from "lucide-react";
 import { api, patch } from "@/lib/client";
 import { RequireProject } from "@/components/RequireProject";
 import type { ChapterRow } from "@/components/ChapterEditor";
+import { GlobalReplace } from "@/components/GlobalReplace";
 import { ListenPlayer, splitParagraphs } from "@/components/ListenPlayer";
 import { Button, Card, ErrorNote, PageHeader } from "@/components/ui/kit";
 
@@ -40,6 +41,8 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
   }
 
   const listenChapter = chapters?.find((c) => c.id === listening?.chapterId);
+  // the chapter that follows the one being heard, so listening can carry on without a click
+  const nextWritten = written[written.findIndex((c) => c.id === listening?.chapterId) + 1];
 
   if (!chapters) return error ? <ErrorNote message={error} /> : <p className="text-ink-700">Loading manuscript…</p>;
 
@@ -62,6 +65,7 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
         </Button>
       </div>
       <ErrorNote message={error} />
+      <GlobalReplace projectId={projectId} onChanged={(cs) => setChapters([...cs].sort((a, b) => a.order - b.order))} />
 
       <article className="rounded-xl border border-ink-200 bg-white p-6 md:p-12">
         <h1 className="mb-12 text-center font-serif text-3xl font-semibold">{title}</h1>
@@ -101,6 +105,7 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
           projectId={projectId}
           startParagraph={listening.paragraph}
           autoPlay
+          onChapterEnd={nextWritten ? () => setListening({ chapterId: nextWritten.id, paragraph: 0 }) : undefined}
           onClose={() => setListening(null)}
           onApply={async (revised) => {
             const { chapter: saved } = await patch<{ chapter: ChapterRow }>("/api/chapters", { id: listenChapter.id, content: revised });

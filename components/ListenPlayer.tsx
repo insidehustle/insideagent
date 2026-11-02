@@ -19,6 +19,8 @@ interface Props {
   startParagraph?: number;
   /** Begin reading as soon as the player opens. */
   autoPlay?: boolean;
+  /** When set, reading carries on into the next chapter by calling this at the end of the text (unless the listener turns it off). */
+  onChapterEnd?: () => void;
 }
 
 interface Segment {
@@ -87,7 +89,7 @@ function sentenceAround(paragraph: string, offset: number): string {
  * Reads the chapter aloud (browser text-to-speech, works on phones and computers), highlights the
  * word being spoken, and lets you tap any word or paragraph to revise it by typing or by voice.
  */
-export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false }: Props) {
+export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false, onChapterEnd }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialog(dialogRef, () => {
     stopSpeaking();
@@ -110,6 +112,11 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
   const voicesRef = useRef(voices);
   voicesRef.current = voices;
   const runRef = useRef(0);
+  const chapterEndRef = useRef(onChapterEnd);
+  chapterEndRef.current = onChapterEnd;
+  const [keepGoing, setKeepGoing] = useState(true);
+  const keepGoingRef = useRef(keepGoing);
+  keepGoingRef.current = keepGoing;
   const posRef = useRef(pos);
   posRef.current = pos;
   const paraEls = useRef<(HTMLParagraphElement | null)[]>([]);
@@ -197,6 +204,8 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
         if (run !== runRef.current) return;
         const list = parasRef.current;
         if (p >= list.length) {
+          // the parent swaps in the next chapter, which starts reading by itself
+          if (chapterEndRef.current && keepGoingRef.current) return chapterEndRef.current();
           setPlaying(false);
           setSpoken(null);
           setPos({ p: 0, s: 0 });
@@ -560,6 +569,12 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
                     </option>
                   ))}
                 </select>
+              </label>
+            )}
+            {onChapterEnd && (
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={keepGoing} onChange={(e) => setKeepGoing(e.target.checked)} />
+                Continue to the next chapter
               </label>
             )}
             <p className="w-full text-center text-[11px] text-ink-700/70">
