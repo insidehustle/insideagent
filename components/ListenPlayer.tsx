@@ -94,6 +94,8 @@ function sentenceAround(paragraph: string, offset: number): string {
 export function ListenPlayer({ text, title, projectId, onApply, onClose, startParagraph = 0, autoPlay = false, onChapterEnd, intro }: Props) {
   const introRef = useRef(intro);
   introRef.current = intro;
+  /** True while the chapter heading is being read, so a restart (voice or speed change) does not skip it. */
+  const introActive = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialog(dialogRef, () => {
     stopSpeaking();
@@ -191,6 +193,7 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
 
   const stopSpeaking = useCallback(() => {
     runRef.current++;
+    introActive.current = false;
     if (supported) window.speechSynthesis.cancel();
     setPlaying(false);
     setSpoken(null);
@@ -236,8 +239,10 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
         };
         synth.speak(u);
       };
+      introActive.current = false;
       if (withIntro && introRef.current) {
         // announce the chapter number and title first, then the text
+        introActive.current = true;
         const u = new SpeechSynthesisUtterance(introRef.current);
         u.rate = rateRef.current;
         const voice = voicesRef.current.find((v) => v.voiceURI === voiceRef.current);
@@ -245,7 +250,11 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
           u.voice = voice;
           u.lang = voice.lang;
         }
-        u.onend = () => go(startP, startS);
+        u.onend = () => {
+          if (run !== runRef.current) return;
+          introActive.current = false;
+          go(startP, startS);
+        };
         u.onerror = () => {
           if (run === runRef.current) setPlaying(false);
         };
@@ -275,7 +284,7 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
     } catch {
       // storage unavailable
     }
-    if (playing) speakFrom(posRef.current.p, posRef.current.s);
+    if (playing) speakFrom(posRef.current.p, posRef.current.s, introActive.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rate, voiceURI]);
 

@@ -105,7 +105,7 @@ function Manuscript({ projectId, title }: { projectId: string; title: string }) 
           projectId={projectId}
           startParagraph={listening.paragraph}
           autoPlay
-          intro={/^chapter\b/i.test(listenChapter.title) ? `${listenChapter.title}.` : `Chapter ${listenChapter.order}. ${listenChapter.title}.`}
+          intro={/^chapter\b/i.test(listenChapter.title) ? `${listenChapter.title}.` : `${listenChapter.order}. ${listenChapter.title}.`}
           onChapterEnd={nextWritten ? () => setListening({ chapterId: nextWritten.id, paragraph: 0 }) : undefined}
           onClose={() => setListening(null)}
           onApply={async (revised) => {
