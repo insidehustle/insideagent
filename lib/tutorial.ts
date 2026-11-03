@@ -1,8 +1,20 @@
 /** Content for the Tutorial page: the guided walkthrough and the feature guides. Plain data, so it is easy to edit. */
 
+export interface TutorialImage {
+  src: string;
+  /** Describes the screen for people who cannot see it. The book text in these pictures is blurred on purpose. */
+  alt: string;
+  caption?: string;
+}
+
+/** A screenshot saved under public/tutorial. */
+const shot = (file: string, alt: string, caption?: string): TutorialImage => ({ src: `/tutorial/${file}.png`, alt, caption });
+
 export interface WalkthroughStep {
   id: string;
   title: string;
+  /** Screenshots of the screens this step uses */
+  images?: TutorialImage[];
   /** One line on why this step matters */
   why: string;
   actions: string[];
@@ -27,6 +39,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
     href: "/dashboard/projects/new",
     linkLabel: "New project",
     auto: "project",
+    images: [shot("new-project", "The New project form with a title and a niche field.", "The New project form.")],
   },
   {
     id: "blueprint",
@@ -43,6 +56,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
     href: "/dashboard/ikigai",
     linkLabel: "Open Ikigai Core",
     auto: "blueprint",
+    images: [shot("ikigai", "Ikigai Core: author profiles at the top, the four question boxes on the left and the generated blueprint on the right.", "Your answers on the left, the generated blueprint on the right.")],
   },
   {
     id: "research",
@@ -58,6 +72,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
     href: "/dashboard/research",
     linkLabel: "Open Research",
     auto: "research",
+    images: [shot("research", "The Research page: a niche box with Run analysis, a place to add a video or web page, an auto-research switch and an outlier score of 82 out of 100.", "Run analysis, then read the outlier score and market gaps.")],
   },
   {
     id: "references",
@@ -67,11 +82,16 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "In Content Studio, open Reference documents and upload PDFs, Word files or text, or paste a YouTube or article link.",
       "Use the toggle on each document to include or leave it out of the writing.",
       "Open Writing instructions and set standing rules: tone, things to avoid, how you want chapters to open. This is also where you switch between Non-fiction and Fiction.",
+      "Open Author interview and press Start interview. The AI asks one question at a time, based on your documents and instructions. Answer in your own words, skip any you like, then press Add answers to writing instructions.",
       "For fiction or named people, open Characters and let it detect them from your documents, then correct the list.",
     ],
-    tip: "To write your own version of a book or video, pick it under \"Create my version of\" before generating the outline. It borrows the structure and ideas, never the wording.",
+    tip: "To write your own version of a book or video, pick it under \"Create my version of\" before generating the outline. It borrows the structure and ideas, never the wording. Specific stories, names and numbers in your interview answers are what make the book sound like you.",
     href: "/dashboard/studio",
     linkLabel: "Open Content Studio",
+    images: [
+      shot("studio-documents", "The Reference documents panel with an Upload files button, a link box and a list of three documents with checkboxes.", "Reference documents: switch each one on or off."),
+      shot("studio-interview", "The Author interview panel with a Start interview button.", "Author interview: press Start interview."),
+    ],
   },
   {
     id: "outline",
@@ -83,10 +103,14 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Read the book brief at the top and each chapter brief. Edit any brief to steer that chapter, then save it.",
       "Open Progress at the top of Content Studio and set a word goal for the whole book (a standard book is about 50,000 words).",
     ],
-    tip: "Changing your mind later? Delete all chapters and regenerate. A snapshot is saved first, so nothing is lost.",
+    tip: "Changing your mind later? Delete all chapters and regenerate. A snapshot is saved first, so nothing is lost. Already have a finished manuscript and only want to edit it? Skip the outline and use Import my manuscript at the top of Content Studio: it splits your file into chapters without rewriting a word.",
     href: "/dashboard/studio",
     linkLabel: "Open Content Studio",
     auto: "chapters",
+    images: [
+      shot("studio-import", "The Import my manuscript panel with a Choose a file button and a paste option.", "Already have a book? Import it instead of generating an outline."),
+      shot("studio-outline", "The Outline panel with a chapter count, a Create my version of selector and a Generate outline button.", "The Outline panel."),
+    ],
   },
   {
     id: "write",
@@ -101,6 +125,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Not happy with the shape? Use the arrows beside a chapter in the list to move it, click in the text and press Split at cursor to cut a chapter in two, or press Merge with next to join two.",
     ],
     tip: "If the draft names someone who is not in your documents or Characters list, a yellow note flags it so you can add or remove them.",
+    images: [shot("studio-editor", "The chapter editor in Content Studio, with Listen, History and Save buttons, the chapter brief, a box for chapter instructions with a Redraft button, the split and merge tools and the chapter text. The text is blurred.", "The chapter editor. The book text is blurred in this picture.")],
     href: "/dashboard/studio",
     linkLabel: "Open Content Studio",
   },
@@ -115,6 +140,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Watch Progress for your word count against the goal and your daily streak.",
     ],
     tip: "Run the check after the first full draft and again before you call the book finished.",
+    images: [shot("studio-continuity", "The Continuity check panel with a Check the book button.", "Press Check the book.")],
     href: "/dashboard/studio",
     linkLabel: "Open Content Studio",
   },
@@ -138,8 +164,16 @@ export const WALKTHROUGH: WalkthroughStep[] = [
     why: "See every written chapter in order as one manuscript.",
     actions: [
       "Open Manuscript to read the book from start to finish.",
-      "Use Listen from here to hear the book from any point.",
-      "Go back to Content Studio to fix anything you spot.",
+      "Use the chapter selector at the top, which stays in view as you scroll, to jump to any chapter. The arrows step to the previous or next one.",
+      "Press Listen from here to hear the book from that chapter. Each chapter is announced by its number and title, and reading carries on into the next chapter by itself until you pause or untick Continue to the next chapter.",
+      "Need the same change everywhere, such as a renamed character? Open Find and replace in the whole book, press Show matches, untick any chapter you want to leave alone, then Replace. The changes show up in Content Studio too.",
+      "Go back to Content Studio to fix anything else you spot.",
+    ],
+    tip: "Find and replace saves a project snapshot and each chapter's earlier text in History first, so it can be undone.",
+    images: [
+      shot("manuscript", "The Manuscript page: a chapter selector bar with previous and next arrows and a Listen from here button, a Find and replace panel, and the first chapter. The book text is blurred.", "The chapter selector stays at the top as you scroll."),
+      shot("manuscript-listen", "The read-aloud player with a pause button, speed and voice choices and a Continue to the next chapter checkbox. The book text is blurred.", "The listening player."),
+      shot("manuscript-replace", "The Find and replace panel opened, with Find and Replace with boxes, Match case and Whole words only options and a Show matches button.", "Find and replace in the whole book."),
     ],
     href: "/dashboard/manuscript",
     linkLabel: "Open Manuscript",
@@ -154,6 +188,7 @@ export const WALKTHROUGH: WalkthroughStep[] = [
       "Post what you like, and edit the rest in your own words.",
     ],
     tip: "Repurpose your strongest chapters first. One chapter can produce several posts.",
+    images: [shot("marketing", "Marketing page with the Cover Studio form (title, subtitle, author name, layout and asset) and the start of Social Posts.", "Cover Studio and Social Posts.")],
     href: "/dashboard/marketing",
     linkLabel: "Open Marketing",
   },
@@ -163,6 +198,7 @@ export interface GuideSection {
   id: string;
   title: string;
   summary: string;
+  images?: TutorialImage[];
   href: string;
   items: { heading: string; body: string }[];
 }
@@ -172,6 +208,7 @@ export const GUIDES: GuideSection[] = [
     id: "ikigai",
     title: "Ikigai Core",
     summary: "Your author blueprint: who you are, who you write for and how you sound.",
+    images: [shot("ikigai", "Ikigai Core with the question boxes on the left and the blueprint on the right.")],
     href: "/dashboard/ikigai",
     items: [
       { heading: "The four questions", body: "What you love, what you are good at, what the world needs, and what it will pay for. A book works best where all four overlap, which is the point of the framework." },
@@ -185,6 +222,7 @@ export const GUIDES: GuideSection[] = [
     id: "research",
     title: "Research",
     summary: "Market gaps, an outlier score and video references.",
+    images: [shot("research", "The Research page with Run analysis, add a video or web page, auto-research and the outlier score.")],
     href: "/dashboard/research",
     items: [
       { heading: "Outlier score", body: "A 1 to 100 score built from five signals: how underserved the reader's pain is, buyer demand, how weak the top competitors are, how well you fit the gaps, and how well the niche earns beyond book sales. 80+ is a strong opportunity." },
@@ -198,8 +236,11 @@ export const GUIDES: GuideSection[] = [
     id: "studio",
     title: "Content Studio",
     summary: "Outline, draft, edit and protect the book.",
+    images: [shot("studio-editor", "The Content Studio chapter editor with the book text blurred.")],
     href: "/dashboard/studio",
     items: [
+      { heading: "Import my manuscript", body: "For authors who only want to edit, listen and run the continuity check. Choose a .docx, .pdf, .txt or .md file, or paste the text, and it is split into chapters with nothing rewritten. It looks for headings such as Chapter 1, Prologue, Part One, markdown # titles or numbered titles. If it finds none, it cuts the text into even sections that you can rename, split or merge. If the project already has chapters you choose to replace them (a snapshot is saved first) or add after them. Scanned PDFs need converting to text first." },
+      { heading: "Author interview", body: "The AI interviews you, one question at a time, using your reference documents and writing instructions. It asks for your own stories, opinions, reader and voice, which documents cannot supply. Skip any question and stop whenever you like. Press Add answers to writing instructions and they are distilled into a marked section of your Writing instructions, which every outline, chapter and edit then follows. Running the interview again replaces that section and never touches what you typed yourself. An unfinished interview is remembered in your browser." },
       { heading: "Outline", body: "Generates the chapter list, a book brief and a brief for every chapter from your documents, instructions, characters and blueprint. If chapters are already drafted, delete them before regenerating." },
       { heading: "Briefs and instructions", body: "The chapter brief steers each draft; edit it freely. A chapter instruction is saved and followed every time that chapter is drafted. Writing instructions apply to the whole book." },
       { heading: "Reference documents", body: "Upload files or import links. Only documents switched on are used. The editor shows which ones a draft drew on." },
@@ -219,16 +260,20 @@ export const GUIDES: GuideSection[] = [
     id: "manuscript",
     title: "Manuscript",
     summary: "The whole book on one page.",
+    images: [shot("manuscript", "The Manuscript page with the chapter selector bar and the book text blurred.")],
     href: "/dashboard/manuscript",
     items: [
       { heading: "Reading", body: "Every written chapter in order, so you can judge flow and pacing." },
-      { heading: "Listening", body: "Start the read-aloud from any chapter." },
+      { heading: "Chapter selector", body: "A bar at the top of the page, always in view, with a dropdown of every chapter and previous and next arrows. Choose a chapter and the page scrolls to it. The dropdown follows you as you scroll." },
+      { heading: "Listening", body: "Start the read-aloud from any chapter, or from any paragraph with its play button, or press Listen from here on the chapter selector. The chapter number and title are read first when a chapter starts from the top. Reading continues into the next chapter by itself; untick Continue to the next chapter in the player to stop at the end of each one. Speed and voice are remembered. Tap a word or paragraph in the player to revise it." },
+      { heading: "Find and replace in the whole book", body: "Change a name, term or spelling in every chapter at once. Choose Match case or Whole words only, press Show matches to see each chapter with a highlighted example, untick any chapter to leave it out, then press Replace. Chapter titles are included. A project snapshot is saved first and each changed chapter keeps its earlier text in History (labelled Before find and replace). It changes exact text only; it does not understand meaning, so check the matches before replacing." },
     ],
   },
   {
     id: "marketing",
     title: "Marketing",
     summary: "Covers and social posts.",
+    images: [shot("marketing", "The Marketing page with the Cover Studio form.")],
     href: "/dashboard/marketing",
     items: [
       { heading: "Cover Studio", body: "Generates cover concepts and promo images from your title and niche. The artwork is AI generated and your title and author name are added on top." },
@@ -261,6 +306,18 @@ export const FAQ: { q: string; a: string }[] = [
   {
     q: "I redrafted a chapter and liked the old one better.",
     a: "Open History on that chapter, select the version labelled Before redraft, and press Restore.",
+  },
+  {
+    q: "I only want to edit my own book, not have it rewritten.",
+    a: "Use Import my manuscript at the top of Content Studio. It splits your file into chapters and leaves the words alone. Then edit, listen on the Manuscript page and run the continuity check. Skip the outline and the drafting buttons.",
+  },
+  {
+    q: "My imported book was split in the wrong places.",
+    a: "The split follows headings such as Chapter 1 or Prologue. If your file has none, it is cut into even sections. Rename any chapter, use Split at cursor and Merge with next to fix the breaks, or add clear headings to the file and import it again, choosing to replace the chapters (a snapshot is saved first).",
+  },
+  {
+    q: "I replaced the wrong text across the book.",
+    a: "Open History on an affected chapter and restore the version labelled Before find and replace, or restore the project snapshot of that name from Project snapshots to put every chapter back at once.",
   },
   {
     q: "I deleted all my chapters by mistake.",

@@ -6,9 +6,27 @@ import { ArrowLeft, ArrowRight, Check, ChevronDown, Circle, Lightbulb, RotateCcw
 import { useProject } from "@/components/ProjectProvider";
 import { Button, Card, PageHeader } from "@/components/ui/kit";
 import { cn } from "@/lib/cn";
-import { FAQ, GUIDES, WALKTHROUGH } from "@/lib/tutorial";
+import { FAQ, GUIDES, WALKTHROUGH, type TutorialImage } from "@/lib/tutorial";
 
 const STORAGE = "bas.tutorial";
+
+/** Screenshots for a step or guide. Each opens full size in a new tab, since the screens have small text. */
+function Shots({ images }: { images?: TutorialImage[] }) {
+  if (!images?.length) return null;
+  return (
+    <div className={cn("grid gap-3", images.length > 1 && "sm:grid-cols-2")}>
+      {images.map((img) => (
+        <figure key={img.src} className="overflow-hidden rounded-lg border border-ink-200 bg-white">
+          <a href={img.src} target="_blank" rel="noreferrer" title="Open full size" className="block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img.src} alt={img.alt} loading="lazy" className="h-auto w-full" />
+          </a>
+          {img.caption && <figcaption className="border-t border-ink-200 px-3 py-2 text-xs text-ink-700">{img.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  );
+}
 
 interface Saved {
   step: number;
@@ -142,6 +160,8 @@ function Walkthrough() {
             ))}
           </ol>
 
+          <Shots images={s.images} />
+
           {s.tip && (
             <p className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <Lightbulb size={16} className="mt-0.5 shrink-0" />
@@ -212,6 +232,7 @@ function Guides() {
                     </div>
                   ))}
                 </dl>
+                <Shots images={g.images} />
                 <Link href={g.href} className="inline-flex items-center gap-1 text-sm font-medium text-accent-dark hover:underline">
                   Open {g.title} <ArrowRight size={14} />
                 </Link>
