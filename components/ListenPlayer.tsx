@@ -36,6 +36,9 @@ interface Selection {
   word?: { text: string; start: number; end: number };
 }
 
+/** Chrome's online "Google ..." voices play at one fixed speed and ignore the rate setting; local voices obey it. */
+const ignoresSpeed = (v?: SpeechSynthesisVoice) => !!v && !v.localService && /^Google\b/i.test(v.name);
+
 const QUICK_EDITS = ["Make it shorter", "Use simpler words", "More vivid", "More direct", "Sound more natural"];
 
 export const splitParagraphs = (t: string) =>
@@ -156,7 +159,20 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
         } catch {
           // storage unavailable
         }
-        const pick = list.find((v) => v.voiceURI === saved) ?? list.find((v) => v.lang.startsWith("en") && v.default) ?? list.find((v) => v.lang.startsWith("en")) ?? list[0];
+        // prefer voices that honor the speed setting
+        const adjustable = list.filter((v) => !ignoresSpeed(v));
+        const us = (v: SpeechSynthesisVoice) => /^en[-_]US$/i.test(v.lang);
+        const pick =
+          list.find((v) => v.voiceURI === saved) ??
+          adjustable.find((v) => us(v) && v.default) ??
+          adjustable.find(us) ??
+          list.find((v) => us(v) && v.default) ??
+          list.find(us) ??
+          adjustable.find((v) => v.lang.startsWith("en") && v.default) ??
+          adjustable.find((v) => v.lang.startsWith("en")) ??
+          list.find((v) => v.lang.startsWith("en") && v.default) ??
+          list.find((v) => v.lang.startsWith("en")) ??
+          list[0];
         return pick?.voiceURI ?? "";
       });
     };
@@ -594,11 +610,16 @@ export function ListenPlayer({ text, title, projectId, onApply, onClose, startPa
                 <select className="max-w-[10rem] !py-1" value={voiceURI} onChange={(e) => setVoiceURI(e.target.value)}>
                   {voices.map((v) => (
                     <option key={v.voiceURI} value={v.voiceURI}>
-                      {v.name} ({v.lang})
+                      {v.name} ({v.lang}){ignoresSpeed(v) ? " - fixed speed" : ""}
                     </option>
                   ))}
                 </select>
               </label>
+            )}
+            {ignoresSpeed(voices.find((v) => v.voiceURI === voiceURI)) && (
+              <p className="w-full text-center text-xs text-amber-800">
+                This voice always plays at one speed in Chrome. Pick a voice without &ldquo;fixed speed&rdquo; (such as a Microsoft voice) to change the speed.
+              </p>
             )}
             {onChapterEnd && (
               <label className="flex items-center gap-1 text-xs">
